@@ -1,7 +1,8 @@
-# GOParser: A parser for gene ontology (GO) data
 # Copyright (c) 2015 Florian Wagner
 #
-# This program is free software: you can redistribute it and/or modify
+# This file is part of GOParser.
+#
+# GOParser is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, Version 3,
 # as published by the Free Software Foundation.
 #
@@ -12,6 +13,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+"""
+GOParser: A parser for gene ontology (GO) data
+"""
 
 import csv
 import gzip
