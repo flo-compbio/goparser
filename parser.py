@@ -211,7 +211,7 @@ class GOParser(object):
 		n = 0
 		excluded_evidence_annotations = 0
 		valid_annotations = 0
-		with open_plain_or_gzip(annotation_file) as fh:
+		with open_plain_or_gzip(annotation_file) if annotation_file != '-' else sys.stdin as fh:
 			reader = csv.reader(fh,dialect='excel-tab')
 			print "Parsing annotations...",
 			sys.stdout.flush()
@@ -235,6 +235,7 @@ class GOParser(object):
 					term = self.terms[id_]
 
 					invalid = False
+
 					if gene not in self.genes:
 						unknown_gene_annotations += 1
 						unknown_gene_names[l[2]] += 1
@@ -245,24 +246,24 @@ class GOParser(object):
 						unknown_term_ids[id_] += 1
 						invalid = True
 
-					if invalid: continue
-					
-					valid_annotations += 1
+					if not invalid:
+				
+						valid_annotations += 1
 
-					# parse secondary information (associated UniProt and PubMed entries)
-					pmid = pmid_pattern.search(l[5])
-					if pmid is not None: pmid = pmid.group(0)
-					uniprot = uniprot_pattern.search(l[7])
-					if uniprot is not None: uniprot = uniprot.group(1)
+						# parse secondary information (associated UniProt and PubMed entries)
+						pmid = pmid_pattern.search(l[5])
+						if pmid is not None: pmid = pmid.group(0)
+						uniprot = uniprot_pattern.search(l[7])
+						if uniprot is not None: uniprot = uniprot.group(1)
 
-					# generate annotation
-					ann = GOAnnotation(target=gene,term=term,evidence=evidence,pubmed_id=pmid,uniprot=uniprot)
+						# generate annotation
+						ann = GOAnnotation(target=gene,term=term,evidence=evidence,pubmed_id=pmid,uniprot=uniprot)
 
-					# add annotation under term ID
-					self.term_annotations[id_].add(ann)
+						# add annotation under term ID
+						self.term_annotations[id_].add(ann)
 
-					# add annotation under gene
-					self.gene_annotations[gene].add(ann)
+						# add annotation under gene
+						self.gene_annotations[gene].add(ann)
 
 
 		print "done!"

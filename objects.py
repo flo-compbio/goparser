@@ -14,9 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import re
+
 class GOTerm(object):
 
 	short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
+	abbrev = [(r'regulation',r'reg.','positive ','pos.','negative','neg.','interferon','IFN')]
 
 	def __init__(self,id_,name,namespace,is_a,part_of,definition=None):
 		self.id = id_
@@ -35,6 +38,7 @@ class GOTerm(object):
 		# to store all descendants/ancestors
 		self.descendants = None
 		self.ancestors = None
+
 
 	def __repr__(self):
 		return "<GOTerm %s>" %(self.id)
@@ -66,9 +70,11 @@ class GOTerm(object):
 	def get_acc(self): # gets the accession number as integer
 		return int(self.id[3:])
 
-	def get_pretty_format(self,omit_acc=False,max_name_length=0):
+	def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
 		#print self.namespace
 		name = self.name
+		for abb in self.abbrev:
+			name = re.sub(abb[0],abb[1],name)
 		if max_name_length >= 3 and len(name) > max_name_length:
 			name = name[:(max_name_length-3)] + '...'
 		if omit_acc: return "%s: %s" %(self.short_ns[self.namespace], name)
