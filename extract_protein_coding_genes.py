@@ -32,8 +32,9 @@ def read_args_from_cmdline():
 	parser.add_argument('-a','--annotation-file',required=True)
 	parser.add_argument('-o','--output-file',required=True)
 	parser.add_argument('-c','--chromosome-pattern',default=r'(?:\d\d?|MT|X|Y)$')
-	#parser.add_argument('-e','--exclude-chromosomes',default=[],nargs='+')
+	parser.add_argument('-f','--field-name',default='gene')
 
+	#parser.add_argument('-e','--exclude-chromosomes',default=[],nargs='+')
 	#parser.add_argument('-i','--case-insensitive',action='store_true')
 
 	return parser.parse_args()
@@ -71,6 +72,7 @@ def main(args):
 
 	input_file = args.annotation_file
 	chrom_pat = re.compile(args.chromosome_pattern)
+	field_name = args.field_name
 	#case_insensitive = args.case_insensitive
 
 	#if exclude_chromosomes:
@@ -101,7 +103,7 @@ def main(args):
 			i += 1
 			if i % int(1e5) == 0:
 				print '\r%d...' %(i), ; sys.stdout.flush() # report progress
-			if len(l) > 1 and l[2] == 'gene':
+			if len(l) > 1 and l[2] == field_name:
 				attr = parse_attributes(l[8])
 				type_ = attr['gene_biotype']
 				if type_ in ['protein_coding','polymorphic_pseudogene']:
@@ -141,7 +143,6 @@ def main(args):
 						types[type_] += 1
 						if type_ == 'polymorphic_pseudogene':
 							polymorphic.add(name)
-						else:
 							genes2[name] += 1
 
 	print "done (parsed %d lines)." %(i)
