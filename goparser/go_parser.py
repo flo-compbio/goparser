@@ -26,7 +26,7 @@ import bisect
 import cPickle as pickle
 from collections import Counter
 
-from objects import GOTerm, GOAnnotation
+from go_objects import GOTerm, GOAnnotation
 
 def open_plain_or_gzip(fn):
 	try:
@@ -36,9 +36,12 @@ def open_plain_or_gzip(fn):
 		return open(fn)
 
 class GOParser(object):
+	"""
+	The main class that contains both a representation of the ontology and gene annotations.
+	"""
+
 	short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
 	def __init__(self):
-		print "NEW!"
 		self.terms = None
 		self.term_annotations = None
 		self.gene_annotations = None
@@ -71,15 +74,21 @@ class GOParser(object):
 			raise ValueError("Term name not found!")
 
 		return term
-		
-	def parse_ontology(self,fn,quiet=False,flatten=True):
-		# requires file to end with a newline
-		# overwrites all previously parsed data
+
+	def clear_ontology_data(self):
 		self.terms = {}
 		self.alt_id = {}
 		self.syn2id = {}
 		self.name2id = {}
 		self.flattened = False
+		
+	def parse_ontology(self,fn,quiet=False,flatten=True,part_of_cc_only=False):
+		""" This function parses an .obo file. """
+
+		# part_of_cc_only: use only for backwards compatability
+		# requires file to end with a newline
+		# overwrites all previously parsed data
+		self.clear_ontology_data()
 
 		fh = open(fn)
 		n = 0
@@ -106,7 +115,13 @@ class GOParser(object):
 						if l[(10+idx+2):].startswith("EXACT"):
 							s = l[10:(10+idx)]
 							self.syn2id[s] = id_
-					elif namespace == 'cellular_component' and l.startswith('relationship: part_of'): part_of.add(l[22:32])
+					#elif namespace == 'cellular_component' and l.startswith('relationship: part_of'): part_of.add(l[22:32])
+					elif l.startswith('relationship: part_of'):
+						if part_of_cc_only:
+							if namespace == 'cellular_component':
+								part_of.add(l[22:32])
+						else:
+							part_of.add(l[22:32])
 					l = fh.next()
 				self.terms[id_] = GOTerm(id_,name,namespace,is_a,part_of)
 		if not quiet:
@@ -125,7 +140,6 @@ class GOParser(object):
 
 		if flatten:
 			self.flatten(quiet)
-			self.flattened = True
 
 	def flatten(self,quiet=False):
 		if not quiet:
@@ -137,6 +151,7 @@ class GOParser(object):
 		self.flatten_descendants()
 		if not quiet:
 			print "done!"; sys.stdout.flush()
+		self.flattened = True
 
 	def flatten_ancestors(self,include_part_of=True):
 
@@ -170,32 +185,48 @@ class GOParser(object):
 		for term in self.terms.itervalues():
 			term.descendants = get_all_descendants(term)
 
-	def save(self,ofn,compress=True):
+	def save(self,ofn,compress=False):
 		store = self
+		print 'Saving pickle...', ; sys.stdout.flush()
 		if compress:
 			with gzip.open(ofn,'wb') as ofh:
 				pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
 		else:
 			with open(ofn,'wb') as ofh:
 				pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
+		print 'done!' ; sys.stdout.flush()
 
-	def parse_annotations(self,annotation_file,gene_file,exclude_evidence=[]):
+	def clear_annotation_data(self):
+		self.genes = set()
+		self.annotations = []
+		self.term_annotations = {}
+		self.gene_annotations = {}
+
+	def parse_annotations(self,annotation_file,gene_file,db_sel='UniProtKB',select_evidence=[],exclude_evidence=[],exclude_ref=[],strip_species=False,ignore_case=False):
+		""" This function parses an annotation file. """
+
 		if not self.terms:
 			raise ValueError("You need to parse an ontology first (OBO file)!")
 
 		# always overwrite all previously parsed annotations
+		self.clear_annotation_data()
 
 		# read genes
 		genes = set()
+		genes_upper = {}
 		with open(gene_file) as fh:
 			reader = csv.reader(fh,dialect='excel-tab')
 			for l in reader:
 				genes.add(l[0])
-		self.genes = genes
+				if ignore_case:
+					genes_upper[l[0].upper()] = l[0]
+		self.genes = genes # store the list of genes for later use
+		print "Read %d genes." %(len(genes)); sys.stdout.flush()
 
 		# read annotations
-		self.term_annotations = dict((id_,set()) for id_ in self.terms)
-		self.gene_annotations = dict((g,set()) for g in self.genes)
+		self.term_annotations = dict((id_,[]) for id_ in self.terms)
+		self.gene_annotations = dict((g,[]) for g in self.genes)
+		gene_terms = dict((g,set()) for g in self.genes) # only used for statistics
 
 		isoform_pattern = re.compile(r"UniProtKB:([A-Z][0-9A-Z]{5}-\d+)")
 		gene_pattern = re.compile(r"[a-zA-Z0-9]+\.\d+$")
@@ -208,74 +239,111 @@ class GOParser(object):
 		unknown_term_ids = Counter()
 		unknown_term_annotations = 0
 
+		# Parsing!
+		print "Parsing annotations...", ; sys.stdout.flush()
 		n = 0
 		excluded_evidence_annotations = 0
+		excluded_reference_annotations = 0
 		valid_annotations = 0
 		with open_plain_or_gzip(annotation_file) if annotation_file != '-' else sys.stdin as fh:
 			reader = csv.reader(fh,dialect='excel-tab')
-			print "Parsing annotations...",
-			sys.stdout.flush()
 			for i,l in enumerate(reader):
 				target = None
-				if (i + 1) % 10000 == 0:
-					print i+1, ; sys.stdout.flush()
+				#if i % 10000 == 0:
+				#	print i, ; sys.stdout.flush()
 
-				if l[0] == 'UniProtKB' and l[3] != 'NOT':
+				if not l: continue
+				if ((not db_sel) or l[0] == db_sel) and l[3] != 'NOT':
 					n+=1
-					if l[6] in exclude_evidence:
+
+					# test if evidence code is excluded
+					if (select_evidence and l[6] not in select_evidence) or l[6] in exclude_evidence:
 						excluded_evidence_annotations += 1
 						continue
+
+					# test if reference is excluded
+					db_ref = []
+					if l[5]:
+						db_ref = l[5].split('|')
+						if len(db_ref) == 1 and db_ref[0] in exclude_ref:
+							excluded_reference_annotations += 1
+							continue
+							
 
 					# determine target
 					if not l[2]: raise Exception('Missing target gene in line %d:\n%s' %(i+1, '\t'.join(l)))
 
 					gene = l[2]
-					id_ = l[4]
+					db = l[0]
+					db_id = l[1]
+					if strip_species:
+						try:
+							gene = gene[:gene.rindex('_')]
+						except ValueError as e:
+							pass
+
+					term_id = l[4]
 					evidence = l[6]
-					term = self.terms[id_]
 
 					invalid = False
 
-					if gene not in self.genes:
+					if (ignore_case and gene.upper() not in genes_upper) or ((not ignore_case) and gene not in self.genes):
 						unknown_gene_annotations += 1
 						unknown_gene_names[l[2]] += 1
 						invalid = True
 
-					if id_ not in self.terms:
+					if term_id not in self.terms:
 						unknown_term_annotations += 1
-						unknown_term_ids[id_] += 1
+						unknown_term_ids[term_id] += 1
 						invalid = True
 
 					if not invalid:
 				
 						valid_annotations += 1
 
+						# if ignore_case, convert gene to "original" name
+						if ignore_case:
+							gene = genes_upper[gene.upper()]
+
+						term = self.terms[term_id]
+
 						# parse secondary information (associated UniProt and PubMed entries)
-						pmid = pmid_pattern.search(l[5])
-						if pmid is not None: pmid = pmid.group(0)
-						uniprot = uniprot_pattern.search(l[7])
-						if uniprot is not None: uniprot = uniprot.group(1)
+						#pmid = pmid_pattern.search(l[5])
+						#if pmid is not None: pmid = pmid.group(0)
+						#uniprot = uniprot_pattern.search(l[7])
+						#if uniprot is not None: uniprot = uniprot.group(1)
+						with_ = []
+						if l[7]:
+							with_ = l[7].split('|')
 
 						# generate annotation
-						ann = GOAnnotation(target=gene,term=term,evidence=evidence,pubmed_id=pmid,uniprot=uniprot)
+						ann = GOAnnotation(target=gene,term=term,evidence=evidence,db_id=db_id,db_ref=db_ref,with_=with_)
+
+						# add annotation to global list
+						self.annotations.append(ann)
 
 						# add annotation under term ID
-						self.term_annotations[id_].add(ann)
+						self.term_annotations[term_id].append(ann)
 
 						# add annotation under gene
-						self.gene_annotations[gene].add(ann)
-
-
+						self.gene_annotations[gene].append(ann)
+						gene_terms[gene].add(term_id)
 		print "done!"
 
 		# output some statistics
- 		print "Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type)." \
-				%(n,excluded_evidence_annotations,100*(excluded_evidence_annotations/float(n)))
+		if n > 0:
+			print "Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type)." \
+					%(n,excluded_evidence_annotations,100*(excluded_evidence_annotations/float(n)))
 		if unknown_gene_annotations > 0:
 			print "Warning: %d annotations with %d unkonwn gene names." %(unknown_gene_annotations,len(unknown_gene_names))
 		if unknown_term_annotations > 0:
 			print "Warning: %d annotations with %d unkonwn term IDs." %(unknown_term_annotations,len(unknown_term_ids))
 		print "Found a total of %d valid annotations." %(valid_annotations)
+		print "%d unique Gene-Term associations." %(sum(len(gene_terms[g]) for g in genes))
+		sys.stdout.flush()
+
+	def get_annotations(self):
+		return self.annotations
 
 	def get_gene_goterms(self,gene,ancestors=False):
 		# get all GO terms a gene is annotated with (including their ancestors, if requested)
