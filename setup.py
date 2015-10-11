@@ -4,7 +4,7 @@ from os import path
 
 here = path.abspath(path.dirname(__file__))
 description = 'GOparser - A Python framework for working with gene ontology (GO) terms and annotations'
-version = '1.1rc1'
+version = '1.1rc2'
 
 long_description = ''
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
