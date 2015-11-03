@@ -76,7 +76,6 @@ class GOTerm(object):
         return int(self.id[3:])
 
     def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
-        #print self.namespace
         name = self.name
         if abbreviate:
             for abb in self.abbrev:

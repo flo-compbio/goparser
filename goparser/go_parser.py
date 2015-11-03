@@ -26,6 +26,7 @@ import bisect
 import cPickle as pickle
 from collections import Counter
 
+from genometools import misc
 from go_objects import GOTerm, GOAnnotation
 
 def open_plain_or_gzip(fn):
@@ -41,14 +42,49 @@ class GOParser(object):
     """
 
     short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
-    def __init__(self):
+    def __init__(self,logger=None,quiet=False,verbose=True):
         self.terms = None
         self.term_annotations = None
         self.gene_annotations = None
+
+        # create logger
+        if logger is None:
+            self.logger = misc.get_logger(None,logging.INFO)
+        else:
+            self.logger = logger.getChild('goparser')
+    
+        # set log level
+        self.quiet = quiet
+        self.verbose = verbose
+        self.update_log_level()
+
         self.syn2id = {}
         self.alt_id = {}
         self.name2id = {}
         self.flattened = False
+
+    def update_log_level(self):
+        # call this after self.quiet or self.verbose has been chagned
+        log_level = logging.INFO
+        if self.quiet:
+            log_level = logging.WARNING
+        elif self.verbose:
+            log_level = logging.ERROR
+        self.logger.setLevel(log_level)
+
+    # logging convenience functions
+    def debug(self,s,*args):
+        self.logger.debug(s,*args)
+
+    def info(self,s,*args):
+        self.logger.info(s,*args)
+
+    def warning(self,s,*args):
+        self.logger.warning(s,*args)
+
+    def error(self,s,*args):
+        self.logger.error(s,*args)
+
 
     def get_id_from_acc(self,acc):
         return 'GO:%07' %(acc)
@@ -60,7 +96,6 @@ class GOParser(object):
         return self.terms[self.get_id_from_acc(acc)]
 
     def get_term_by_name(self,name):
-
         term = None
         try:
             term = self.name2id[name]
@@ -82,7 +117,7 @@ class GOParser(object):
         self.name2id = {}
         self.flattened = False
         
-    def parse_ontology(self,fn,quiet=False,flatten=True,part_of_cc_only=False):
+    def parse_ontology(self,fn,flatten=True,part_of_cc_only=False):
         """ This function parses an .obo file. """
 
         # part_of_cc_only: use only for backwards compatability
@@ -124,33 +159,25 @@ class GOParser(object):
                             part_of.add(l[22:32])
                     l = fh.next()
                 self.terms[id_] = GOTerm(id_,name,namespace,is_a,part_of)
-        if not quiet:
-            print "Parsed %d GO term definitions." %(n); sys.stdout.flush()
+
+        self.info('Parsed %d GO term definitions.', n)
 
         # store children and parts
-        if not quiet:
-            print 'Adding child and part relationships...', ; sys.stdout.flush()
+        self.info('Adding child and part relationships...')
         for id_,term in self.terms.iteritems():
             for parent in term.is_a:
                 self.terms[parent].children.add(id_)
             for whole in term.part_of:
                 self.terms[whole].parts.add(id_)
-        if not quiet:
-            print 'done!'; sys.stdout.flush()
 
         if flatten:
-            self.flatten(quiet)
+            self.flatten()
 
-    def flatten(self,quiet=False):
-        if not quiet:
-            print "Flattening ancestors...", ; sys.stdout.flush()
+    def flatten(self):
+        self.info('Flattening ancestors...')
         self.flatten_ancestors()
-        if not quiet:
-            print "done!"
-            print "Flattening descendants...", ; sys.stdout.flush()
+        self.info('Flattening descendants...')
         self.flatten_descendants()
-        if not quiet:
-            print "done!"; sys.stdout.flush()
         self.flattened = True
 
     def flatten_ancestors(self,include_part_of=True):
@@ -187,14 +214,13 @@ class GOParser(object):
 
     def save(self,ofn,compress=False):
         store = self
-        print 'Saving pickle...', ; sys.stdout.flush()
+        self.info('Saving pickle...')
         if compress:
             with gzip.open(ofn,'wb') as ofh:
                 pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
         else:
             with open(ofn,'wb') as ofh:
                 pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
-        print 'done!' ; sys.stdout.flush()
 
     def clear_annotation_data(self):
         self.genes = set()
@@ -202,7 +228,8 @@ class GOParser(object):
         self.term_annotations = {}
         self.gene_annotations = {}
 
-    def parse_annotations(self,annotation_file,gene_file,db_sel='UniProtKB',select_evidence=[],exclude_evidence=[],exclude_ref=[],strip_species=False,ignore_case=False):
+    def parse_annotations(self,annotation_file,gene_file,db_sel='UniProtKB',\
+            select_evidence=[],exclude_evidence=[],exclude_ref=[],strip_species=False,ignore_case=False):
         """ This function parses an annotation file. """
 
         if not self.terms:
@@ -221,7 +248,7 @@ class GOParser(object):
                 if ignore_case:
                     genes_upper[l[0].upper()] = l[0]
         self.genes = genes # store the list of genes for later use
-        print "Read %d genes." %(len(genes)); sys.stdout.flush()
+        self.info('Read %d genes.', len(genes))
 
         # read annotations
         self.term_annotations = dict((id_,[]) for id_ in self.terms)
@@ -240,7 +267,7 @@ class GOParser(object):
         unknown_term_annotations = 0
 
         # Parsing!
-        print "Parsing annotations...", ; sys.stdout.flush()
+        self.info('Parsing annotations...')
         n = 0
         excluded_evidence_annotations = 0
         excluded_reference_annotations = 0
@@ -249,8 +276,6 @@ class GOParser(object):
             reader = csv.reader(fh,dialect='excel-tab')
             for i,l in enumerate(reader):
                 target = None
-                #if i % 10000 == 0:
-                #   print i, ; sys.stdout.flush()
 
                 if not l: continue
                 if ((not db_sel) or l[0] == db_sel) and l[3] != 'NOT':
@@ -328,19 +353,19 @@ class GOParser(object):
                         # add annotation under gene
                         self.gene_annotations[gene].append(ann)
                         gene_terms[gene].add(term_id)
-        print "done!"
 
         # output some statistics
         if n > 0:
-            print "Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type)." \
-                    %(n,excluded_evidence_annotations,100*(excluded_evidence_annotations/float(n)))
+            self.info('Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type).', \
+                    n,excluded_evidence_annotations,100*(excluded_evidence_annotations/float(n)))
         if unknown_gene_annotations > 0:
-            print "Warning: %d annotations with %d unkonwn gene names." %(unknown_gene_annotations,len(unknown_gene_names))
+            self.warning('Warning: %d annotations with %d unkonwn gene names.', \
+                    unknown_gene_annotations,len(unknown_gene_names))
         if unknown_term_annotations > 0:
-            print "Warning: %d annotations with %d unkonwn term IDs." %(unknown_term_annotations,len(unknown_term_ids))
-        print "Found a total of %d valid annotations." %(valid_annotations)
-        print "%d unique Gene-Term associations." %(sum(len(gene_terms[g]) for g in genes))
-        sys.stdout.flush()
+            self.warning('Warning: %d annotations with %d unkonwn term IDs.',\
+                    unknown_term_annotations,len(unknown_term_ids))
+        self.info('Found a total of %d valid annotations.', valid_annotations)
+        self.info('%d unique Gene-Term associations.', sum(len(gene_terms[g]) for g in genes))
 
     def get_annotations(self):
         return self.annotations
