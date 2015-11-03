@@ -22,6 +22,7 @@ import csv
 import gzip
 import re
 import sys
+import logging
 import bisect
 import cPickle as pickle
 from collections import Counter
