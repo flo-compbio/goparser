@@ -4,7 +4,7 @@ from os import path
 
 here = path.abspath(path.dirname(__file__))
 description = 'GOparser - A Python framework for working with gene ontology (GO) terms and annotations'
-version = '1.1rc2'
+version = '1.1rc3'
 
 long_description = ''
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
@@ -45,20 +45,21 @@ setup(
     #packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     packages=['goparser'],
 
-    install_requires=['genometools','sphinx','sphinx_rtd_theme'],
+    install_requires=['genometools'],
 
-	# development dependencies
-    #extras_require={
-    #},
+    # development dependencies
+    extras_require={
+            'docs': ['sphinx','sphinx_rtd_theme']
+    },
 
-	# data
+    # data
     #package_data={
     #},
 
-	# data outside package
+    # data outside package
     #data_files=[('my_data', ['data/data_file'])],
 
-	# executable scripts
+    # executable scripts
     #entry_points={
     #    'console_scripts': []
     #},

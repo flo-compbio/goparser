@@ -10,7 +10,7 @@ Installation
 
 .. code-block:: bash
 
-	$ pip install goparser
+    $ pip install goparser
 
 Documentation
 -------------
