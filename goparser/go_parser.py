@@ -43,7 +43,7 @@ class GOParser(object):
     """
 
     short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
-    def __init__(self,logger=None,quiet=False,verbose=True):
+    def __init__(self,logger=None,quiet=False,verbose=False):
         self.terms = None
         self.term_annotations = None
         self.gene_annotations = None
@@ -70,7 +70,7 @@ class GOParser(object):
         if self.quiet:
             log_level = logging.WARNING
         elif self.verbose:
-            log_level = logging.ERROR
+            log_level = logging.DEBUG
         self.logger.setLevel(log_level)
 
     # logging convenience functions
