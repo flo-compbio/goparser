@@ -1,8 +1,8 @@
 # Copyright (c) 2015 Florian Wagner
 #
-# This file is part of GOParser.
+# This file is part of GOparser.
 #
-# GOParser is free software: you can redistribute it and/or modify
+# GOparser is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, Version 3,
 # as published by the Free Software Foundation.
 #
@@ -15,7 +15,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
-GOParser: A parser for gene ontology (GO) data
+GOparser: A parser for gene ontology (GO) data
 """
 
 import csv
@@ -28,14 +28,7 @@ import cPickle as pickle
 from collections import Counter
 
 from genometools import misc
-from go_objects import GOTerm, GOAnnotation
-
-def open_plain_or_gzip(fn):
-    try:
-        gzip.open(fn).next()
-        return gzip.open(fn)
-    except IOError:
-        return open(fn)
+from goparser import GOTerm, GOAnnotation
 
 class GOParser(object):
     """
@@ -273,7 +266,7 @@ class GOParser(object):
         excluded_evidence_annotations = 0
         excluded_reference_annotations = 0
         valid_annotations = 0
-        with open_plain_or_gzip(annotation_file) if annotation_file != '-' else sys.stdin as fh:
+        with misc.open_plain_or_gzip(annotation_file) if annotation_file != '-' else sys.stdin as fh:
             reader = csv.reader(fh,dialect='excel-tab')
             for i,l in enumerate(reader):
                 target = None
