@@ -67,12 +67,12 @@ author = u'Florian Wagner'
 # version = The short X.Y version.
 
 # see https://www.python.org/dev/peps/pep-0440/#pre-releases
-import re
+#import re
+#prerel_pat = re.compile(r'(?:a|b|rc)\d+$')
+#version = prerel_pat.sub('',goparser.__version__)
 import pkg_resources
 version = pkg_resources.parse_version(goparser.__version__)
 version = '%d.%d' %(int(version[0]),int(version[1]))
-#prerel_pat = re.compile(r'(?:a|b|rc)\d+$')
-#version = prerel_pat.sub('',goparser.__version__)
 
 # release = The full version, including alpha/beta/rc tags.
 release = goparser.__version__
