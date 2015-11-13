@@ -43,12 +43,12 @@ Copyright (c) 2015 Florian Wagner
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-.. |docs-latest| image:: https://readthedocs.org/projects/goparser/badge/?version=latest
+.. |docs-latest| image:: http://readthedocs.org/projects/goparser/badge/?version=latest
     :alt: Documentation Status (master branch)
     :scale: 100%
     :target: https://goparser.readthedocs.org/en/latest/?badge=latest
 
-.. |docs-develop| image:: https://readthedocs.org/projects/goparser/badge/?version=develop
+.. |docs-develop| image:: http://readthedocs.org/projects/goparser/badge/?version=develop
     :alt: Documentation Status (develop branch)
     :scale: 100%
     :target: https://goparser.readthedocs.org/en/develop/?badge=develop

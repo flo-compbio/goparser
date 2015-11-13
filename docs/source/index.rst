@@ -6,7 +6,7 @@
 GOparser |version|
 ==================
 
-GOparser is Python framework for working with Gene Ontology (GO) Terms and
+GOparser is Python framework for working with Gene Ontology (GO) terms and
 annotations. GOparser is free and open-source software, `licensed <license>`
 under the GNU GPL v3.
 
@@ -54,6 +54,7 @@ Missing Features
     :hidden:
 
     self
+    manual
     modules
     license
 

@@ -14,8 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-"""
-GOparser: A parser for gene ontology (GO) data
+"""Module containing the GOParser class.
+
 """
 
 import csv
@@ -31,15 +31,123 @@ from genometools import misc
 from goparser import GOTerm, GOAnnotation
 
 class GOParser(object):
-    """
-    The main class that contains both a representation of the ontology and gene annotations.
+    """ A class for accessing Gene Ontology (GO) term and annotation data.
+
+    This class provides functions for parsing text files describing the Gene
+    Ontology and GO annotations, for accessing information about specific GO
+    terms, as well as for querying the data for associations between genes and
+    GO terms.
+
+    Parameters
+    ----------
+    logger: a `logging.Logger` object, optional
+        The logging object. If None, logging messages will be directed to
+        stdout. Use `genometools.misc.get_logger` to configure a logger object.
+    quiet: bool, optional
+        If True, only warnings and errors will be reported.
+    verbose: bool, optional
+        If True, enable verbose logging (i.e., including debug messages).
+        If ``quiet`` is set to True, the value of this parameter is ignored.
+
+    Attributes
+    ----------
+    terms: dict
+        A mapping of GO term IDs to `GOTerm` objects, each representing a
+        single GO term. Populated by the member function `parse_ontology`.
+    genes: set
+        A set of all "valid" gene names. Populated by the member function
+        `parse_annotations`. Typically, this is the set of all protein-coding
+        genes of a particular species. GOparser ignores all annotations
+        for genes that are not in this set.
+    annotations: list
+        A list of `GOAnnotation` objects, each representing a single GO
+        annotation. Populated by the member function `parse_annotations`.
+
+    Methods
+    -------
+    get_term_by_id(id_)
+        Return the term with the given term ID as a `GOTerm` object.
+    get_term_by_name(name)
+        Return the term with the given name as a `GOTerm` object.
+    get_gene_goterms(gene, ancestors=False)
+        Return all GO terms that the given gene is annotated with.
+        If ``ancestors`` is set to True, also return all ancestor GO terms
+        of those terms.
+    get_goterm_genes(id_, descendants=True)
+        Return all genes annotated with the GO term corresponding to the given
+        GO term ID. If ``descendants`` is set to True, also
+        return genes annotated with any descendant GO term of this term. Since
+        annotations should be propagated down to descendant terms, this is the
+        default behavior.
+    save(ofn, compress=False)
+        Stores the GOParser object as a `pickle` file. If ``compress`` is set
+        to True, the object is stored as a gzip'ed pickle file.
+    load(fn)
+        Loads the GOParser object from a `pickle` file. Gzip compression is
+        detected automatically.
+        
+    Notes
+    -----
+    The typical workflow for reading the GO annotations for a specific species
+    looks as follows:
+
+    - Step 1) Extract a list of protein-coding genes using the script
+      ``extract_protein_coding_genes.py`` from the `genometools` package.
+      (See the `GenomeTools documentation`__.)
+
+    __ extract_genes_
+
+    - Step 2) Use the `parse_ontology` member function to parse the
+      ``go-basic.obo`` file, containing the Gene Ontology.
+      (This file can be `downloaded`__ from the website of the Gene Ontology
+      Consortium.)
+
+    __ download_go_
+
+    - Step 3) Use the `parse_annotations` member function to parse a gene
+      association file (GAF), containing annotations of genes with GO terms for
+      a specific species. The list of protein-coding genes generated in Step 1)
+      is used to only parse annotations for protein-coding genes.
+      A species-specific file can be `downloaded`__ from the ftp server of the
+      UniProt-GOA database.
+
+    __ download_gaf_
+
+    Afterwards, the member functions and `get_term_by_id` and
+    `get_term_by_name` can be used to obtain GOTerm objects containing
+    information about individual GO terms. The member function
+    `get_gene_goterms` can be used to obtain a list of all GO terms a particular
+    gene is annoatated with, and the member function `get_goterm_genes` can be
+    used to obtain a list of all genes annotated with a particular GO term.
+
+    .. _extract_genes: https://genometools.readthedocs.org/en/latest/scripts.html#extract-protein-coding-genes-py
+    .. _download_go: http://geneontology.org/page/download-ontology
+    .. _download_gaf: http://www.ebi.ac.uk/GOA/downloads
+
+    Examples
+    --------
+    The following example assumes that the Gene Ontology OBO file and the
+    UniProt-GOA gene association files have been downloaded, and that a list of
+    protein-coding genes named "protein_coding_genes_human.tsv" has been
+    generated using the genometools Python package.
+
+    >>> from goparser import GOParser
+    >>> G = GOParser()
+    >>> GOParser.parse_ontology('go-basic.obo')
+    >>> GOParser.parse_annotations('gene_association.goa_human.gz','protein_coding_genes_human.tsv')
+    >>> print GOParser.get_gene_goterms('MYC')
+
     """
 
     short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
+    """Abbreviations for the three branches of the Gene Ontology.
+    """
+
     def __init__(self,logger=None,quiet=False,verbose=False):
-        self.terms = None
-        self.term_annotations = None
-        self.gene_annotations = None
+        self.terms = {}
+        self.annotations = []
+        self.term_annotations = {}
+        self.gene_annotations = {}
 
         # create logger
         if logger is None:
@@ -50,7 +158,7 @@ class GOParser(object):
         # set log level
         self.quiet = quiet
         self.verbose = verbose
-        self.update_log_level()
+        self.update_log_level() 
 
         self.syn2id = {}
         self.alt_id = {}
@@ -216,6 +324,13 @@ class GOParser(object):
             with open(ofn,'wb') as ofh:
                 pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
 
+    @staticmethod
+    def load(fn):
+        G = None
+        with misc.open_plain_or_gzip(fn,'rb') as fh:
+            G = pickle.load(fh)
+        return G
+
     def clear_annotation_data(self):
         self.genes = set()
         self.annotations = []
@@ -379,7 +494,7 @@ class GOParser(object):
 
         return terms
 
-    def get_goterm_genes(self,id_,descendants=True,verbose=False):
+    def get_goterm_genes(self,id_,descendants=True):
         # get all genes annotated with a GO term (include genes annotated with a descendant GO term, if requested)
 
         # determine which terms to include

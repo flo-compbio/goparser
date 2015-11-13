@@ -1,5 +1,5 @@
-Modules
-=======
+List of Modules
+===============
 
 GOparser consists of the following modules:
 

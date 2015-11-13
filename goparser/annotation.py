@@ -19,7 +19,7 @@ import re
 class GOAnnotation(object):
 
     """
-    GO annotation class, representing an assignment of a GO term to a gene.
+    Class representing an assignment of a GO term to a gene.
     """
 
     #uniprot_pattern = re.compile("([A-Z][A-Z0-9]{5})(?:-(\d+))?")

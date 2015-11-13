@@ -1,11 +1,26 @@
 License
 =======
 
+GOparser Documentation
+----------------------
+
+Copyright (c) 2015 Florian Wagner.
+
+The GOparser Documentation is licensed under a
+`Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License`__
+
+__ cc_license_
+
+.. _cc_license: http://creativecommons.org/licenses/by-nc-sa/4.0/
+
+GOparser
+--------
+
 Copyright (c) 2015 Florian Wagner.
 
 ::
     
-    This documentation is part of GOparser.
+    The source code of this documentation is part of GOparser.
 
     GOparser is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License, Version 3,
