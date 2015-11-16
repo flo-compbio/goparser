@@ -282,7 +282,7 @@ class GOParser(object):
             G = pickle.load(fh)
         return G
 
-def get_term_by_id(self,id_):
+    def get_term_by_id(self,id_):
         """Get the GO term corresponding to the given GO term ID.
 
         Parameters
