@@ -51,15 +51,15 @@ class GOParser(object):
 
     Attributes
     ----------
-    terms: dict
+    terms: dict [str:GOTerm]
         A mapping of GO term IDs to `GOTerm` objects, each representing a
         single GO term. Populated by the member function `parse_ontology`.
-    genes: set
+    genes: set of str
         A set of all "valid" gene names. Populated by the member function
         `parse_annotations`. Typically, this is the set of all protein-coding
         genes of a particular species. GOparser ignores all annotations
         for genes that are not in this set.
-    annotations: list
+    annotations: list of GOAnnotation objects
         A list of `GOAnnotation` objects, each representing a single GO
         annotation. Populated by the member function `parse_annotations`.
 
@@ -151,121 +151,302 @@ class GOParser(object):
 
         # create logger
         if logger is None:
-            self.logger = misc.get_logger(None,logging.INFO)
+            self._logger = misc.get_logger(None,logging.INFO)
         else:
-            self.logger = logger.getChild('goparser')
+            self._logger = logger.getChild('goparser')
     
         # set log level
-        self.quiet = quiet
-        self.verbose = verbose
-        self.update_log_level() 
+        self._quiet = quiet
+        self._verbose = verbose
+        self._update_log_level() 
 
-        self.syn2id = {}
-        self.alt_id = {}
-        self.name2id = {}
-        self.flattened = False
+        self._syn2id = {}
+        self._alt_id = {}
+        self._name2id = {}
+        self._flattened = False
 
-    def update_log_level(self):
-        # call this after self.quiet or self.verbose has been chagned
+    @property
+    def quiet(self):
+        """Get or set the ``_quiet`` attribute.
+
+        If the ``_quiet`` attribute is set to True, info messages are
+        suppressed, and only warnings and errors are reported.
+        """
+        return self._quiet
+
+    @quiet.setter
+    def quiet(self,b):
+        if self._quiet != bool(b):
+            self._quiet = bool(b)
+            self._update_log_level()
+
+    @property
+    def verbose(self):
+        """Get or set the ``_verbose`` attribute.
+
+        If the ``_verbose`` attribute is set to True, debug messages are
+        reported (in addition to info, warning, and error messages). Note that
+        this attribute is ignored when the ``_quiet`` attribute is set to True.
+        """
+
+    @verbose.setter
+    def verbose(self,b):
+        if self._verbose != bool(b):
+            self._verbose = bool(b)
+            self._update_log_level()
+
+    def _update_log_level(self):
+        """Updates the log level. Called whenever the configuration changes.
+
+        The log level is determined by the values of the ``_quiet`` and
+        ``_verbose`` attributes.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         log_level = logging.INFO
         if self.quiet:
             log_level = logging.WARNING
         elif self.verbose:
             log_level = logging.DEBUG
-        self.logger.setLevel(log_level)
+        self._logger.setLevel(log_level)
 
     # logging convenience functions
-    def debug(self,s,*args):
-        self.logger.debug(s,*args)
+    def _debug(self,s,*args):
+        """Generate a DEBUG message."""
+        self._logger.debug(s,*args)
 
-    def info(self,s,*args):
-        self.logger.info(s,*args)
+    def _info(self,s,*args):
+        """Generate an INFO message."""
+        self._logger.info(s,*args)
 
-    def warning(self,s,*args):
-        self.logger.warning(s,*args)
+    def _warning(self,s,*args):
+        """Generate a WARNING message."""
+        self._logger.warning(s,*args)
 
-    def error(self,s,*args):
-        self.logger.error(s,*args)
+    def _error(self,s,*args):
+        """Generate an ERROR message."""
+        self._logger.error(s,*args)
 
+    def save(self,ofn,compress=False):
+        """Serialize the current GOParser object and store it in a pickle file.
 
-    def get_id_from_acc(self,acc):
-        return 'GO:%07' %(acc)
+        Parameters
+        ----------
+        ofn: str
+            Path of the output file.
+        compress: bool, optional
+            Whether to compress the file using gzip.
 
-    def get_term_by_id(self,id_):
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Compression with gzip is significantly slower than storing the file
+        in uncompressed form.
+        """
+        self._info('Saving pickle...')
+        if compress:
+            with gzip.open(ofn,'wb') as ofh:
+                pickle.dump(self,ofh,pickle.HIGHEST_PROTOCOL)
+        else:
+            with open(ofn,'wb') as ofh:
+                pickle.dump(self,ofh,pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(fn):
+        """Load a GOParser object from a pickle file.
+
+        The function automatically detects whether the file is compressed
+        with gzip.
+
+        Parameters
+        ----------
+        fn: str
+            Path of the pickle file.
+
+        Returns
+        -------
+        GOParser
+            The GOParser object stored in the pickle file.
+        """
+        G = None
+        with misc.open_plain_or_gzip(fn,'rb') as fh:
+            G = pickle.load(fh)
+        return G
+
+def get_term_by_id(self,id_):
+        """Get the GO term corresponding to the given GO term ID.
+
+        Parameters
+        ----------
+        id_: str
+            A GO term ID.
+
+        Returns
+        -------
+        GOTerm
+            The GO term corresponding to the given ID.
+        """
         return self.terms[id_]
 
     def get_term_by_acc(self,acc):
-        return self.terms[self.get_id_from_acc(acc)]
+        """Get the GO term corresponding to the given GO term accession number.
+
+        Parameters
+        ----------
+        acc: int
+            The GO term accession number.
+
+        Returns
+        -------
+        GOTerm
+            The GO term corresponding to the given accession number.
+        """
+        return self.terms[GOParser.acc2id(acc)]
 
     def get_term_by_name(self,name):
+        """Get the GO term with the given GO term name.
+
+        If the given name is not associated with any GO term, the function will
+        search for it among synonyms.
+
+        Parameters
+        ----------
+        name: str
+            The name of the GO term.
+
+        Returns
+        -------
+        GOTerm
+            The GO term with the given name.
+
+        Raises
+        ------
+        ValueError
+            If the given name is found neither among the GO term names, nor
+            among synonyms.
+        """
         term = None
         try:
-            term = self.name2id[name]
+            term = self._name2id[name]
         except KeyError:
             try:
-                term = self.syn2id[name]
+                term = self._syn2id[name]
             except KeyError:
                 pass
 
         if term is None:
-            raise ValueError("Term name not found!")
+            raise ValueError('Term name "%s" not found!' %(name))
 
         return term
 
-    def clear_ontology_data(self):
+    def clear_data(self):
+        """Clear both ontology and annotation data.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        self.clear_annotation_data()
         self.terms = {}
-        self.alt_id = {}
-        self.syn2id = {}
-        self.name2id = {}
-        self.flattened = False
-        
+        self._alt_id = {}
+        self._syn2id = {}
+        self._name2id = {}
+        self._flattened = False
+ 
+    def clear_annotation_data(self):
+        """Clear annotation data.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        self.genes = set()
+        self.annotations = []
+        self.term_annotations = {}
+        self.gene_annotations = {}
+
     def parse_ontology(self,fn,flatten=True,part_of_cc_only=False):
-        """ This function parses an .obo file. """
+        """ Parse an OBO file and store GO term information.
 
-        # part_of_cc_only: use only for backwards compatability
-        # requires file to end with a newline
-        # overwrites all previously parsed data
-        self.clear_ontology_data()
+        This function needs to be called before `parse_annotations`, in order
+        to read in the Gene Ontology terms and structure.
 
-        fh = open(fn)
-        n = 0
-        while True:
-            try:
-                nextline = fh.next()
-            except StopIteration:
-                break
-            if nextline == '[Term]\n':
-                n+=1
-                id_ = fh.next()[4:-1]
-                #acc = get_acc(id_)
-                name = fh.next()[6:-1]
-                self.name2id[name] = id_
-                namespace = fh.next()[11:-1]
-                is_a = set()
-                part_of = set()
-                l = fh.next()
-                while l != '\n':
-                    if l.startswith('alt_id:'): self.alt_id[l[8:-1]] = id_
-                    elif l.startswith('is_a:'): is_a.add(l[6:16])
-                    elif l.startswith('synonym:'):
-                        idx = l[10:].index('"')
-                        if l[(10+idx+2):].startswith("EXACT"):
-                            s = l[10:(10+idx)]
-                            self.syn2id[s] = id_
-                    #elif namespace == 'cellular_component' and l.startswith('relationship: part_of'): part_of.add(l[22:32])
-                    elif l.startswith('relationship: part_of'):
-                        if part_of_cc_only:
-                            if namespace == 'cellular_component':
-                                part_of.add(l[22:32])
-                        else:
-                            part_of.add(l[22:32])
+        Parameters
+        ----------
+        fn: str
+            Path of the OBO file.
+        flatten: bool, optional
+            If set to False, do not generate a list of all ancestors and
+            descendants for each GO term. Warning: Without flattining,
+            GOparser cannot propagate GO annotations properly.
+        part_of_cc_only: bool, optional
+            Legacy parameter for backwards compatibility. If set to True,
+            ignore ``part_of`` relations outside the ``celluclar_component``
+            namespace/domain.
+
+        Notes
+        -----
+        The function erases all previously parsed data.
+        The function requires the OBO file to end with a line break.
+        """
+        self.clear_data() # clear all old data
+
+        with open(fn) as fh:
+            n = 0
+            while True:
+                try:
+                    nextline = fh.next()
+                except StopIteration:
+                    break
+                if nextline == '[Term]\n':
+                    n+=1
+                    id_ = fh.next()[4:-1]
+                    #acc = get_acc(id_)
+                    name = fh.next()[6:-1]
+                    self.name2id[name] = id_
+                    namespace = fh.next()[11:-1]
+                    is_a = set()
+                    part_of = set()
                     l = fh.next()
-                self.terms[id_] = GOTerm(id_,name,namespace,is_a,part_of)
+                    while l != '\n':
+                        if l.startswith('alt_id:'): self.alt_id[l[8:-1]] = id_
+                        elif l.startswith('is_a:'): is_a.add(l[6:16])
+                        elif l.startswith('synonym:'):
+                            idx = l[10:].index('"')
+                            if l[(10+idx+2):].startswith("EXACT"):
+                                s = l[10:(10+idx)]
+                                self.syn2id[s] = id_
+                        #elif namespace == 'cellular_component' and l.startswith('relationship: part_of'): part_of.add(l[22:32])
+                        elif l.startswith('relationship: part_of'):
+                            if part_of_cc_only:
+                                if namespace == 'cellular_component':
+                                    part_of.add(l[22:32])
+                            else:
+                                part_of.add(l[22:32])
+                        l = fh.next()
+                    self.terms[id_] = GOTerm(id_,name,namespace,is_a,part_of)
 
-        self.info('Parsed %d GO term definitions.', n)
+        self._info('Parsed %d GO term definitions.', n)
 
         # store children and parts
-        self.info('Adding child and part relationships...')
+        self._info('Adding child and part relationships...')
         for id_,term in self.terms.iteritems():
             for parent in term.is_a:
                 self.terms[parent].children.add(id_)
@@ -273,16 +454,13 @@ class GOParser(object):
                 self.terms[whole].parts.add(id_)
 
         if flatten:
-            self.flatten()
+            self._info('Flattening ancestors...')
+            self._flatten_ancestors()
+            self._info('Flattening descendants...')
+            self._flatten_descendants()
+            self._flattened = True
 
-    def flatten(self):
-        self.info('Flattening ancestors...')
-        self.flatten_ancestors()
-        self.info('Flattening descendants...')
-        self.flatten_descendants()
-        self.flattened = True
-
-    def flatten_ancestors(self,include_part_of=True):
+    def _flatten_ancestors(self,include_part_of=True):
 
         def get_all_ancestors(term):
             ancestors = set()
@@ -298,7 +476,7 @@ class GOParser(object):
         for term in self.terms.itervalues():
             term.ancestors = get_all_ancestors(term)
 
-    def flatten_descendants(self,include_parts=True):
+    def _flatten_descendants(self,include_parts=True):
 
         def get_all_descendants(term):
             descendants = set()
@@ -314,35 +492,12 @@ class GOParser(object):
         for term in self.terms.itervalues():
             term.descendants = get_all_descendants(term)
 
-    def save(self,ofn,compress=False):
-        store = self
-        self.info('Saving pickle...')
-        if compress:
-            with gzip.open(ofn,'wb') as ofh:
-                pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
-        else:
-            with open(ofn,'wb') as ofh:
-                pickle.dump(store,ofh,pickle.HIGHEST_PROTOCOL)
-
-    @staticmethod
-    def load(fn):
-        G = None
-        with misc.open_plain_or_gzip(fn,'rb') as fh:
-            G = pickle.load(fh)
-        return G
-
-    def clear_annotation_data(self):
-        self.genes = set()
-        self.annotations = []
-        self.term_annotations = {}
-        self.gene_annotations = {}
-
     def parse_annotations(self,annotation_file,gene_file,db_sel='UniProtKB',\
             select_evidence=[],exclude_evidence=[],exclude_ref=[],strip_species=False,ignore_case=False):
-        """ This function parses an annotation file. """
+        """ Parse a GAF 2.0 file. """
 
         if not self.terms:
-            raise ValueError("You need to parse an ontology first (OBO file)!")
+            raise ValueError('You need to first parse an OBO file!')
 
         # always overwrite all previously parsed annotations
         self.clear_annotation_data()
@@ -357,7 +512,7 @@ class GOParser(object):
                 if ignore_case:
                     genes_upper[l[0].upper()] = l[0]
         self.genes = genes # store the list of genes for later use
-        self.info('Read %d genes.', len(genes))
+        self._info('Read %d genes.', len(genes))
 
         # read annotations
         self.term_annotations = dict((id_,[]) for id_ in self.terms)
@@ -376,7 +531,7 @@ class GOParser(object):
         unknown_term_annotations = 0
 
         # Parsing!
-        self.info('Parsing annotations...')
+        self._info('Parsing annotations...')
         n = 0
         excluded_evidence_annotations = 0
         excluded_reference_annotations = 0
@@ -465,16 +620,16 @@ class GOParser(object):
 
         # output some statistics
         if n > 0:
-            self.info('Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type).', \
+            self._info('Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type).', \
                     n,excluded_evidence_annotations,100*(excluded_evidence_annotations/float(n)))
         if unknown_gene_annotations > 0:
-            self.warning('Warning: %d annotations with %d unkonwn gene names.', \
+            self._warning('Warning: %d annotations with %d unkonwn gene names.', \
                     unknown_gene_annotations,len(unknown_gene_names))
         if unknown_term_annotations > 0:
-            self.warning('Warning: %d annotations with %d unkonwn term IDs.',\
+            self._warning('Warning: %d annotations with %d unkonwn term IDs.',\
                     unknown_term_annotations,len(unknown_term_ids))
-        self.info('Found a total of %d valid annotations.', valid_annotations)
-        self.info('%d unique Gene-Term associations.', sum(len(gene_terms[g]) for g in genes))
+        self._info('Found a total of %d valid annotations.', valid_annotations)
+        self._info('%d unique Gene-Term associations.', sum(len(gene_terms[g]) for g in genes))
 
     def get_annotations(self):
         return self.annotations

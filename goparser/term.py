@@ -18,19 +18,64 @@ import re
 
 class GOTerm(object):
 
-    """
-    Class representing a GO term.
+    """Class representing a GO term.
+
+    Parameters
+    ----------
+    id_: str
+        See ``id`` attribute.
+    name: str
+        See ``name`` attribute.
+    namespace: str
+        See ``namespace`` attribute.
+    is_a: List of str
+        See ``is_a`` attribute.
+    part_of: List of str
+        See ``part_of`` attribute.
+
+    Attributes
+    ----------
+    id: str
+        The ID of the GO term.
+    name: str
+        The name of the GO term.
+    namespace: str
+        The namespace (or domain) of the GO term.
+    is_a: List of str
+        List of GO term IDs that this GO term is a "subtype" of.
+    part_of: List of str
+        List of GO term IDs that this GO term is a "part" of. 
+
+    Methods
+    -------
+    get_pretty_format(omit_acc=False, max_name_length=0, abbreviate=True)
+        Returns a formatted version of the GO term name and ID.
+
     """
 
-    short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
-    abbrev = [('positive ','pos. '),('negative ','neg. '),('interferon-','IFN-'),('proliferation','prolif.'),('signaling','signal.')]
+    _short_ns = {
+        'biological_process': 'BP',
+        'molecular_function': 'MF',
+        'cellular_component': 'CC'
+    }
+    """Dictionary representing the abbreviations of the different namespaces.
+    """
 
-    def __init__(self,id_,name,namespace,is_a,part_of,definition=None):
+    _abbrev = [
+        ('positive ','pos. '),
+        ('negative ','neg. '),
+        ('interferon-','IFN-'),
+        ('proliferation','prolif.'),
+        ('signaling','signal.')
+    ]
+    """List of tuples defining abbreviations to use in GO term names.
+    """
+
+    def __init__(self,id_,name,namespace,is_a,part_of):
 
         self.id = id_ # unique identifier
         self.name = name
         self.namespace = namespace
-        self.definition = definition
 
         # to store immediate parents/wholes
         self.is_a = is_a.copy()
@@ -66,27 +111,89 @@ class GOTerm(object):
     def __hash__(self):
         return hash(repr(self))
 
-    def get_namespace_short(self):
-        return self.short_ns[self.namespace]
+    @staticmethod
+    def id2acc(id_):
+        """Converts a GO term ID to an accession number.
 
-    def get_id(self):
-        return self.id
+        Parameters
+        ----------
+        id_: str
+            A GO term ID.
 
-    def get_acc(self): # gets the accession number as integer
-        return int(self.id[3:])
+        Returns
+        -------
+        int
+            The accession number corresponding to the GO term ID.
+
+        """
+        return int(id_[3:])
+
+    @staticmethod
+    def acc2id(self,acc):
+        """Converts a GO term accession number to an ID.
+
+        Parameters
+        ----------
+        acc: int
+            A GO term accession number.
+
+        Returns
+        -------
+        str
+            The ID corresponding to the GO term accession number.
+        """
+        return 'GO:%07d' %(acc)
+
+    @property
+    def acc(self):
+        return id2acc(self.id)
+
+    @property
+    def namespace_short(self):
+        return self._short_ns[self.namespace]
 
     def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
+        """Returns a formatted version of the GO term name and ID.
+
+        Parameters
+        ----------
+        omit_acc: bool, optional
+            If set to True, don't include the GO term ID.
+        max_name_length: int, optional
+            If set, the formatted string (excluding the ID) will be truncated
+            so that its total length does not exceed this value.
+        abbreviate: bool, optional
+            If set to False, do not use abberviations (see ``_abbrev``) to
+            shorten the GO term name.
+
+        Returns
+        -------
+        str
+            The formatted GO term name and ID.
+        """
         name = self.name
         if abbreviate:
-            for abb in self.abbrev:
+            for abb in self._abbrev:
                 name = re.sub(abb[0],abb[1],name)
         if max_name_length >= 3 and len(name) > max_name_length:
             name = name[:(max_name_length-3)] + '...'
-        if omit_acc: return "%s: %s" %(self.short_ns[self.namespace], name)
-        #else: return "%s: %s (GO:%07d)" %(self.short_ns[self.namespace], self.name, self.acc)
-        else: return "%s: %s (%s)" %(self.short_ns[self.namespace], name, self.id)
+        if omit_acc: return "%s: %s" %(self.namespace_short, name)
+        else: return "%s: %s (%s)" %(self.namespace_short, name, self.id)
 
     def get_tuple(self):
+        """Returns a 4-tuple containing the GO term information.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        tuple (of length 4)
+            A tuple with elements consisting of the GO term ID, the string
+            "GO", the shortened namespace / domain (see ``_short_ns``), and the
+            GO term name.
+        """
         return (self.id,'GO',self.get_namespace_short(),self.name)
 
 
