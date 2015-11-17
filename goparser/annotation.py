@@ -18,8 +18,35 @@ import re
 
 class GOAnnotation(object):
 
-    """
-    Class representing an assignment of a GO term to a gene.
+    """Class representing an annotation of a gene with a GO term.
+
+    For a list of annotation properties, see the
+    `GAF 2.1 file format specification`__. 
+
+    __ gaf_file_format_
+    
+    .. _gaf_file_format: http://geneontology.org/page/go-annotation-file-gaf-format-21
+
+    Parameters
+    ----------
+    target: str
+        See :attr:`target` attribute.
+    term: `GOTerm` object
+        The GO term that the gene is annotated with.
+    evidence: str
+        The three-letter evidence code of the annotation (e.g., "IDA").
+    db_id: str, optional
+        Database Object ID of the annotation.
+    db_ref: list of str, optional
+        DB:Reference of the annotation.
+    with_: list of str, optional
+        "With" information of the annotation.
+
+    Attributes
+    ----------
+    target: str
+        The symbol (name) of the gene that is annotated (e.g., "MYOD1").
+
     """
 
     #uniprot_pattern = re.compile("([A-Z][A-Z0-9]{5})(?:-(\d+))?")
@@ -30,8 +57,8 @@ class GOAnnotation(object):
         assert evidence is not None and evidence != ''
         assert type(term) == GOTerm
         self.target = target # a gene name
-        self.evidence = evidence # GO evidence code
         self.term = term # a GOTerm object
+        self.evidence = evidence # GO evidence code
         #self.pubmed_id = pubmed_id # PubMed ID, optional
         #self.uniprot = uniprot # Uniprot identifier, optional
         self.db_id = db_id

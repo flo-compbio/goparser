@@ -461,6 +461,18 @@ class GOParser(object):
             self._flattened = True
 
     def _flatten_ancestors(self,include_part_of=True):
+        """Determines and stores all ancestors of each GO term.
+
+        Parameters
+        ----------
+        include_part_of: bool, optional
+            Whether to include ``part_of`` relations in determining
+            ancestors.
+
+        Returns
+        -------
+        None
+        """
 
         def get_all_ancestors(term):
             ancestors = set()
@@ -477,6 +489,18 @@ class GOParser(object):
             term.ancestors = get_all_ancestors(term)
 
     def _flatten_descendants(self,include_parts=True):
+        """Determines and stores all descendants of each GO term.
+
+        Parameters
+        ----------
+        include_parts: bool, optional
+            Whether to include ``part_of`` relations in determining
+            descendants.
+
+        Returns
+        -------
+        None
+        """
 
         def get_all_descendants(term):
             descendants = set()
@@ -494,7 +518,34 @@ class GOParser(object):
 
     def parse_annotations(self,annotation_file,gene_file,db_sel='UniProtKB',\
             select_evidence=[],exclude_evidence=[],exclude_ref=[],strip_species=False,ignore_case=False):
-        """ Parse a GAF 2.0 file. """
+        """Parse a GAF file and store annotations as GOAnnotation objects.
+
+        Parameters
+        ----------
+        annotation_file: str
+            Path of the annotation file.
+        gene_file: str
+            Path of the gene file. (This file can be generated using
+            extract_protein_coding_genes.py from `genometools`.)
+        db_sel: str, optional
+            Select only annotations with this ``DB`` (column 1) value.
+            If empty, disable filtering based on the ``DB`` value.
+        select_evidence: list of str, optional
+            Only include annotations with the given evidence codes.
+            If empty, allow all evidence codes, except for those listed in
+            ``exclude_evidence``.
+        exclude_evidence: list of str, optional
+            Exclude all annotations with any of the given evidence codes.
+            If ``select_evidence`` is not empty, this parameter is ignored.
+            If empty, allow all evidence codes.
+        exclude_ref: list of str, optional
+            Exclude all annotations with the given DB:reference (column 6).
+            Example: ``["PMID:2676709"]``. Note: This filter is currently
+            ignored if an annotation has more than one reference.
+        strip_species: bool, optional
+        ignore_case: bool, optional
+
+        """
 
         if not self.terms:
             raise ValueError('You need to first parse an OBO file!')
