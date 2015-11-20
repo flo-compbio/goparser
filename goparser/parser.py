@@ -62,6 +62,12 @@ class GOParser(object):
     annotations: list of GOAnnotation objects
         A list of `GOAnnotation` objects, each representing a single GO
         annotation. Populated by the member function `parse_annotations`.
+    term_annotations: dict [str:list of GOAnnotation objects]
+        A mapping of GO term IDs to lists of `GOAnnotation` objects, with each
+        list representing all annotations that use a particular GO term.
+    gene_annotations: dict [str:list of GOAnnotation objects]
+        A mapping of gene symbols to lists of `GOAnnotation` objects, with each
+        list representing all annotations of a particular gene.
 
     Methods
     -------
@@ -335,16 +341,21 @@ class GOParser(object):
             among synonyms.
         """
         term = None
+        func_name = 'get_term_by_name'
         try:
-            term = self._name2id[name]
+            term = self.terms[self._name2id[name]]
         except KeyError:
             try:
-                term = self._syn2id[name]
+                term = self.terms[self._syn2id[name]]
             except KeyError:
                 pass
+            else:
+                self._warning('%s: GO term name "%s" is a synonym for "%s".',
+                        func_name, name, term.name)
 
         if term is None:
-            raise ValueError('Term name "%s" not found!' %(name))
+            raise ValueError('%s : GO term name "%s" not found!'
+                    %(func_name, name))
 
         return term
 
@@ -420,19 +431,21 @@ class GOParser(object):
                     id_ = fh.next()[4:-1]
                     #acc = get_acc(id_)
                     name = fh.next()[6:-1]
-                    self.name2id[name] = id_
+                    self._name2id[name] = id_
                     namespace = fh.next()[11:-1]
                     is_a = set()
                     part_of = set()
                     l = fh.next()
                     while l != '\n':
-                        if l.startswith('alt_id:'): self.alt_id[l[8:-1]] = id_
-                        elif l.startswith('is_a:'): is_a.add(l[6:16])
+                        if l.startswith('alt_id:'):
+                            self._alt_id[l[8:-1]] = id_
+                        elif l.startswith('is_a:'):
+                            is_a.add(l[6:16])
                         elif l.startswith('synonym:'):
                             idx = l[10:].index('"')
                             if l[(10+idx+2):].startswith("EXACT"):
                                 s = l[10:(10+idx)]
-                                self.syn2id[s] = id_
+                                self._syn2id[s] = id_
                         #elif namespace == 'cellular_component' and l.startswith('relationship: part_of'): part_of.add(l[22:32])
                         elif l.startswith('relationship: part_of'):
                             if part_of_cc_only:
@@ -543,8 +556,13 @@ class GOParser(object):
             Example: ``["PMID:2676709"]``. Note: This filter is currently
             ignored if an annotation has more than one reference.
         strip_species: bool, optional
+            Undocumented.
         ignore_case: bool, optional
+            Undocumented.
 
+        Returns
+        -------
+        None
         """
 
         if not self.terms:
@@ -682,12 +700,27 @@ class GOParser(object):
         self._info('Found a total of %d valid annotations.', valid_annotations)
         self._info('%d unique Gene-Term associations.', sum(len(gene_terms[g]) for g in genes))
 
-    def get_annotations(self):
-        return self.annotations
-
     def get_gene_goterms(self,gene,ancestors=False):
-        # get all GO terms a gene is annotated with (including their ancestors, if requested)
-        # (if a gene is annotated with a GO term, it can also be considered annotated with all ancestors of that GO term)
+        """Return all GO terms a particular gene is annotated with.
+
+        Parameters
+        ----------
+        gene: str
+            The gene symbol of the gene.
+        ancestors: bool, optional
+            If set to True, also return all ancestor GO terms.
+
+
+        Returns
+        -------
+        set of GOTerm objects
+            The set of GO terms the gene is annotated with.
+
+        Notes
+        -----
+        If a gene is annotated with a particular GO term, it can also be
+        considered annotated with all ancestors of that GO term.
+        """
         annotations = self.gene_annotations[gene]
         terms = set(ann.term for ann in annotations)
 
@@ -701,7 +734,21 @@ class GOParser(object):
         return terms
 
     def get_goterm_genes(self,id_,descendants=True):
-        # get all genes annotated with a GO term (include genes annotated with a descendant GO term, if requested)
+        """Return all genes that are annotated with a particular GO term.
+
+        Parameters
+        ----------
+        id_: str
+            GO term ID of the GO term.
+        descendants: bool, optional
+            If set to False, only return genes that are directly annotated with
+            the specified GO term. By default, also genes annotated with any
+            descendant term are returned.
+
+        Returns
+        -------
+        Notes
+        """
 
         # determine which terms to include
         main_term = self.terms[id_]

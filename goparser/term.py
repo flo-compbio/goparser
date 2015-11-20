@@ -20,6 +20,9 @@ class GOTerm(object):
 
     """Class representing a GO term.
 
+    This class is used by :func:`GOParser.parse_ontology` to store all parsed
+    GO term data.
+
     Parameters
     ----------
     id_: str
@@ -32,6 +35,7 @@ class GOTerm(object):
         See ``is_a`` attribute.
     part_of: List of str
         See ``part_of`` attribute.
+    children:
 
     Attributes
     ----------
@@ -41,10 +45,18 @@ class GOTerm(object):
         The name of the GO term.
     namespace: str
         The namespace (or domain) of the GO term.
-    is_a: List of str
-        List of GO term IDs that this GO term is a "subtype" of.
-    part_of: List of str
-        List of GO term IDs that this GO term is a "part" of. 
+    is_a: set of str
+        Set of GO term IDs that this GO term is a "subtype" of.
+    part_of: set of str
+        Set of GO term IDs that this GO term is a "part" of. 
+    ancestors: set of str
+        Set of GO term IDs that are "ancestors" of this GO term.
+    children: set of str
+        Set of GO term IDs that are "children" of this GO term.
+    parts: set of str
+        Set of GO term IDs that are "parts" of this GO term.
+    descendants: set of str
+        Set of GO terms IDs that are "descendants" of this GO term.
 
     Methods
     -------
@@ -88,7 +100,6 @@ class GOTerm(object):
         # to store all descendants/ancestors
         self.descendants = None
         self.ancestors = None
-
 
     def __repr__(self):
         return "<GOTerm %s>" %(self.id)
@@ -153,7 +164,7 @@ class GOTerm(object):
         return self._short_ns[self.namespace]
 
     def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
-        """Returns a formatted version of the GO term name and ID.
+        """Returns a nicely formatted string with the GO term information.
 
         Parameters
         ----------
@@ -169,7 +180,7 @@ class GOTerm(object):
         Returns
         -------
         str
-            The formatted GO term name and ID.
+            The formatted string.
         """
         name = self.name
         if abbreviate:
