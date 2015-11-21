@@ -1,8 +1,8 @@
 # Copyright (c) 2015 Florian Wagner
 #
-# This file is part of GOParser.
+# This file is part of GOparser.
 #
-# GOParser is free software: you can redistribute it and/or modify
+# GOparser is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, Version 3,
 # as published by the Free Software Foundation.
 #
@@ -16,103 +16,64 @@
 
 import re
 
-class GOTerm(object):
-
-    """
-    Class representing a GO term.
-    """
-
-    short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
-    abbrev = [('positive ','pos. '),('negative ','neg. '),('interferon-','IFN-'),('proliferation','prolif.'),('signaling','signal.')]
-    #abbrev = [('regulation','reg.'),('positive','pos.'),('negative','neg.'),('interferon-','IFN-')]
-
-    def __init__(self,id_,name,namespace,is_a,part_of,definition=None):
-        self.id = id_
-        self.name = name
-        self.namespace = namespace
-        self.definition = definition
-
-        # to store immediate parents/wholes
-        self.is_a = is_a.copy()
-        self.part_of = part_of.copy()
-
-        # to store immediate children/parts
-        self.children = set()
-        self.parts = set()
-
-        # to store all descendants/ancestors
-        self.descendants = None
-        self.ancestors = None
-
-
-    def __repr__(self):
-        return "<GOTerm %s>" %(self.id)
-    def __str__(self):
-        return "<GOTerm: %s>" %(self.get_pretty_format())
-
-    def __eq__(self,other):
-        if type(self) != type(other):
-            return False
-
-        elif self is other:
-            return True
-            
-        elif self.id == other.id:
-            return True
-
-        else:
-            return False
-
-    def __hash__(self):
-        return hash(repr(self))
-
-    def get_namespace_short(self):
-        return self.short_ns[self.namespace]
-
-    def get_id(self):
-        return self.id
-
-    def get_acc(self): # gets the accession number as integer
-        return int(self.id[3:])
-
-    def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
-        name = self.name
-        if abbreviate:
-            for abb in self.abbrev:
-                name = re.sub(abb[0],abb[1],name)
-        if max_name_length >= 3 and len(name) > max_name_length:
-            name = name[:(max_name_length-3)] + '...'
-        if omit_acc: return "%s: %s" %(self.short_ns[self.namespace], name)
-        #else: return "%s: %s (GO:%07d)" %(self.short_ns[self.namespace], self.name, self.acc)
-        else: return "%s: %s (%s)" %(self.short_ns[self.namespace], name, self.id)
-
-    def get_tuple(self):
-        return (self.id,'GO',self.get_namespace_short(),self.name)
-
+from goparser import GOTerm
 
 class GOAnnotation(object):
 
+    """Class representing an annotation of a gene with a GO term.
+
+    For a list of annotation properties, see the
+    `GAF 2.0 file format specification`__. 
+
+    __ gafformat_
+
+    Parameters
+    ----------
+    target: str
+        See :attr:`target` attribute.
+    term: `GOTerm` object
+        See :attr:`term` attribute.
+    evidence: str
+        See :attr:`evidence` attribute.
+    db_id: str, optional
+        See :attr:`db_id` attribute.
+    db_ref: list of str, optional
+        See :attr:`db_ref` attribute.
+    with_: list of str, optional
+        See :attr:`with_` attribute.
+
+    Attributes
+    ----------
+    target: str
+        The symbol (name) of the gene that is annotated (e.g., "MYOD1").
+    term: `GOTerm` object
+        The GO term that the gene is annotated with.
+    evidence: str
+        The three-letter evidence code of the annotation (e.g., "IDA").
+    db_id: str, optional
+        Database Object ID of the annotation.
+    db_ref: list of str, optional
+        DB:Reference of the annotation.
+    with_: list of str, optional
+        "With" information of the annotation.
+
+    Methods
+    -------
+    get_gaf_format()
+        Return the annotation as a tab-delimited string acccording to the
+        `GAF 2.0 file format`__.
+
+    get_pretty_format()
+        Return a nicely formatted string representation of the GO annotation.
+
+
+    __ gafformat_
+
+    .. _gafformat: http://geneontology.org/page/go-annotation-file-gaf-format-20
+
     """
-    Class representing a GO annotation (i.e., an association of a GO term with a gene).
-    """
 
-    #uniprot_pattern = re.compile("([A-Z][A-Z0-9]{5})(?:-(\d+))?")
-    #short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
-
-    def __init__(self,target,term,evidence,db_id=None,db_ref=[],with_=[]):
-        assert target is not None and target != ''
-        assert evidence is not None and evidence != ''
-        assert type(term) == GOTerm
-        self.target = target # a gene name
-        self.evidence = evidence # GO evidence code
-        self.term = term # a GOTerm object
-        #self.pubmed_id = pubmed_id # PubMed ID, optional
-        #self.uniprot = uniprot # Uniprot identifier, optional
-        self.db_id = db_id
-        self.db_ref = db_ref[:]
-        self.with_ = with_[:]
-
-    evidence_name = {\
+    _evidence_name = {\
             'EXP': 'experiment',\
             'IDA': 'direct assay',\
             'IPI': 'physical interaction',\
@@ -135,8 +96,10 @@ class GOAnnotation(object):
             'ND' : 'no biological data available',\
             'IEA': 'inferred from electronic annotation'\
             }
+    """Mapping of the three-letter evidence codes to their full names.
+    """
 
-    evidence_type = {\
+    _evidence_type = {\
             'EXP': 'experimental',\
             'IDA': 'experimental',\
             'IPI': 'experimental',\
@@ -159,8 +122,10 @@ class GOAnnotation(object):
             'ND' : 'no_data',\
             'IEA': 'automatic'\
             }
+    """Mapping of the three-letter evidence codes to their evidence types.
+    """
 
-    evidence_type_short = {\
+    _evidence_type_short = {\
             'experimental': 'exp.',\
             'computational': 'comp.',\
             'literature': 'lit.',\
@@ -168,6 +133,23 @@ class GOAnnotation(object):
             'no_data': 'n.d.',\
             'automatic': 'autom.'\
             }
+    """Mapping of the evidence types to abbreviated forms.
+    """
+
+    #uniprot_pattern = re.compile("([A-Z][A-Z0-9]{5})(?:-(\d+))?")
+
+    def __init__(self,target,term,evidence,db_id=None,db_ref=[],with_=[]):
+        assert target is not None and target != ''
+        assert evidence is not None and evidence != ''
+        assert type(term) == GOTerm
+        self.target = target # a gene name
+        self.term = term # a GOTerm object
+        self.evidence = evidence # GO evidence code
+        #self.pubmed_id = pubmed_id # PubMed ID, optional
+        #self.uniprot = uniprot # Uniprot identifier, optional
+        self.db_id = db_id
+        self.db_ref = db_ref[:]
+        self.with_ = with_[:]
 
     def __repr__(self):
         return "<GOAnnotation %s>" %(', '.join([self.target,self.db_id,self.evidence,'|'.join(self.db_ref),'|'.join(self.with_),repr(self.term)]))
@@ -197,10 +179,33 @@ class GOAnnotation(object):
     def __hash__(self):
         return hash(repr(self))
 
-    def get_formatted(self,sep='\t'):
+    def get_gaf_format(self):
+        """Return a GAF 2.0-compatible string representation of the annotation.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            The formatted string.
+        """
+        sep = '\t'
         return sep.join([self.target,self.db_ref,self.term.id,self.evidence,'|'.join(self.db_ref),'|'.join(self.with_)])
 
     def get_pretty_format(self):
+        """Returns a nicely formatted string with the annotation information.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            The formatted string.
+        """
         pretty = "Annotation of gene '%s' with GO term '%s' (%s, reference: %s)'" \
                 %(self.target,self.term.get_pretty_format(),self.evidence,'|'.join(self.db_ref))
         return pretty

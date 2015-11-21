@@ -1,4 +1,9 @@
-__all__ = ['GOTerm','GOAnnotation','GOParser']
+import pkg_resources
 
-from go_objects import GOTerm,GOAnnotation
-from go_parser import GOParser
+from goparser.term import GOTerm
+from goparser.annotation import GOAnnotation
+from goparser.parser import GOParser
+
+__version__ = pkg_resources.require('goparser')[0].version
+
+__all__ = ['GOTerm','GOAnnotation','GOParser']
