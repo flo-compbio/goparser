@@ -33,6 +33,17 @@ Main Features
 - Support for filtering annotations based on
   `evidence code <http://geneontology.org/page/guide-go-evidence-codes>`_.
 
+Demo Notebooks
+--------------
+
+- `Demo.ipynb`__ (:download:`download <notebooks/Demo.ipynb>`): GOparser demo notebook
+
+__ demo_notebook_
+
+.. _demo_notebook: http://nbviewer.ipython.org/url/goparser.readthedocs.org/en/latest/_downloads/Demo.ipynb
+
+.. This only links to the "latest" (master) version...no way to automatically switch to the "develop" version
+
 Installation
 ------------
 
