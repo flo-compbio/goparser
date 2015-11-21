@@ -25,8 +25,7 @@ class GOAnnotation(object):
     For a list of annotation properties, see the
     `GAF 2.0 file format specification`__. 
 
-    __ gaf_file_format_
-    
+    __ gafformat_
 
     Parameters
     ----------
@@ -63,12 +62,14 @@ class GOAnnotation(object):
     get_gaf_format()
         Return the annotation as a tab-delimited string acccording to the
         `GAF 2.0 file format`__.
+
     get_pretty_format()
         Return a nicely formatted string representation of the GO annotation.
 
-    __ gaf_file_format_
 
-    .. _gaf_file_format: http://geneontology.org/page/go-annotation-file-gaf-format-20
+    __ gafformat_
+
+    .. _gafformat: http://geneontology.org/page/go-annotation-file-gaf-format-20
 
     """
 

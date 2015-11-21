@@ -40,9 +40,6 @@ class GOParser(object):
 
     Parameters
     ----------
-    logger: a `logging.Logger` object, optional
-        The logging object. If None, logging messages will be directed to
-        stdout. Use `genometools.misc.get_logger` to configure a logger object.
     quiet: bool, optional
         If True, only warnings and errors will be reported.
     verbose: bool, optional
@@ -145,7 +142,7 @@ class GOParser(object):
 
     """
 
-    def __init__(self,logger=None,quiet=False,verbose=False):
+    def __init__(self,quiet=False,verbose=False):
         self.terms = {}
         self.annotations = []
         self.term_annotations = {}
@@ -719,7 +716,7 @@ class GOParser(object):
         terms = set(ann.term for ann in annotations)
 
         if ancestors:
-            assert self.flattened
+            assert self._flattened
             ancestor_terms = set()
             for t in terms:
                 ancestor_terms.update(self.terms[id_] for id_ in t.ancestors)
@@ -749,7 +746,7 @@ class GOParser(object):
         check_terms = set([main_term])
 
         if descendants:
-            assert self.flattened
+            assert self._flattened
             check_terms.update([self.terms[id_] for id_ in main_term.descendants])
 
         # get annotations of all included terms
