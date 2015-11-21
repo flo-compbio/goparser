@@ -29,8 +29,8 @@ class GOTerm(object):
         See ``id`` attribute.
     name: str
         See ``name`` attribute.
-    namespace: str
-        See ``namespace`` attribute.
+    domain: str
+        See ``domain`` attribute.
     is_a: List of str
         See ``is_a`` attribute.
     part_of: List of str
@@ -43,8 +43,8 @@ class GOTerm(object):
         The ID of the GO term.
     name: str
         The name of the GO term.
-    namespace: str
-        The namespace (or domain) of the GO term.
+    domain: str
+        The domain of the GO term (e.g., "biological_process").
     is_a: set of str
         Set of GO term IDs that this GO term is a "subtype" of.
     part_of: set of str
@@ -65,12 +65,12 @@ class GOTerm(object):
 
     """
 
-    _short_ns = {
+    _short_domain = {
         'biological_process': 'BP',
         'molecular_function': 'MF',
         'cellular_component': 'CC'
     }
-    """Dictionary representing the abbreviations of the different namespaces.
+    """Dictionary representing the abbreviations of the Gene Ontology domains.
     """
 
     _abbrev = [
@@ -83,11 +83,11 @@ class GOTerm(object):
     """List of tuples defining abbreviations to use in GO term names.
     """
 
-    def __init__(self,id_,name,namespace,is_a,part_of):
+    def __init__(self,id_,name,domain,is_a,part_of):
 
         self.id = id_ # unique identifier
         self.name = name
-        self.namespace = namespace
+        self.domain = domain
 
         # to store immediate parents/wholes
         self.is_a = is_a.copy()
@@ -160,8 +160,8 @@ class GOTerm(object):
         return id2acc(self.id)
 
     @property
-    def namespace_short(self):
-        return self._short_ns[self.namespace]
+    def domain_short(self):
+        return self._short_domain[self.domain]
 
     def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
         """Returns a nicely formatted string with the GO term information.
@@ -188,8 +188,8 @@ class GOTerm(object):
                 name = re.sub(abb[0],abb[1],name)
         if max_name_length >= 3 and len(name) > max_name_length:
             name = name[:(max_name_length-3)] + '...'
-        if omit_acc: return "%s: %s" %(self.namespace_short, name)
-        else: return "%s: %s (%s)" %(self.namespace_short, name, self.id)
+        if omit_acc: return "%s: %s" %(self.domain_short, name)
+        else: return "%s: %s (%s)" %(self.domain_short, name, self.id)
 
     def get_tuple(self):
         """Returns a 4-tuple containing the GO term information.
@@ -202,9 +202,9 @@ class GOTerm(object):
         -------
         tuple (of length 4)
             A tuple with elements consisting of the GO term ID, the string
-            "GO", the shortened namespace / domain (see ``_short_ns``), and the
-            GO term name.
+            "GO", the shortened domain (see ``_short_domain``), and the GO term
+            name.
         """
-        return (self.id,'GO',self.get_namespace_short(),self.name)
+        return (self.id,'GO',self.domain_short,self.name)
 
 

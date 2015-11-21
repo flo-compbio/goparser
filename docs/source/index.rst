@@ -10,16 +10,6 @@ GOparser is Python framework for working with Gene Ontology (GO) terms and
 annotations. GOparser is free and open-source software, `licensed <license>`
 under the GNU GPL v3.
 
-Installation
-------------
-
-GOparser can be installed from `PyPI <https://pypi.python.org/pypi>`_ using
-`pip <https://pip.pypa.io/en/stable/>`_:
-
-.. code-block:: bash
-
-    $ pip install goparser
-
 Main Features
 -------------
 
@@ -42,6 +32,16 @@ Main Features
 
 - Support for filtering annotations based on
   `evidence code <http://geneontology.org/page/guide-go-evidence-codes>`_.
+
+Installation
+------------
+
+GOparser can be installed from `PyPI <https://pypi.python.org/pypi>`_ using
+`pip <https://pip.pypa.io/en/stable/>`_:
+
+.. code-block:: bash
+
+    $ pip install goparser
 
 Missing Features
 ----------------

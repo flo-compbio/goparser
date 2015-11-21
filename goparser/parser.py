@@ -145,10 +145,6 @@ class GOParser(object):
 
     """
 
-    short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
-    """Abbreviations for the three branches of the Gene Ontology.
-    """
-
     def __init__(self,logger=None,quiet=False,verbose=False):
         self.terms = {}
         self.annotations = []
@@ -156,11 +152,10 @@ class GOParser(object):
         self.gene_annotations = {}
 
         # create logger
-        if logger is None:
-            self._logger = misc.get_logger(None,logging.INFO)
-        else:
-            self._logger = logger.getChild('goparser')
-    
+        # do not add handlers, instead propagate messages to parent logger
+        self._logger = misc.configure_logger(__name__, log_stream=None,
+                log_file=None, propagate=True)
+   
         # set log level
         self._quiet = quiet
         self._verbose = verbose
@@ -410,7 +405,7 @@ class GOParser(object):
         part_of_cc_only: bool, optional
             Legacy parameter for backwards compatibility. If set to True,
             ignore ``part_of`` relations outside the ``celluclar_component``
-            namespace/domain.
+            domain.
 
         Notes
         -----
@@ -432,7 +427,7 @@ class GOParser(object):
                     #acc = get_acc(id_)
                     name = fh.next()[6:-1]
                     self._name2id[name] = id_
-                    namespace = fh.next()[11:-1]
+                    domain = fh.next()[11:-1]
                     is_a = set()
                     part_of = set()
                     l = fh.next()
@@ -446,15 +441,14 @@ class GOParser(object):
                             if l[(10+idx+2):].startswith("EXACT"):
                                 s = l[10:(10+idx)]
                                 self._syn2id[s] = id_
-                        #elif namespace == 'cellular_component' and l.startswith('relationship: part_of'): part_of.add(l[22:32])
                         elif l.startswith('relationship: part_of'):
                             if part_of_cc_only:
-                                if namespace == 'cellular_component':
+                                if domain == 'cellular_component':
                                     part_of.add(l[22:32])
                             else:
                                 part_of.add(l[22:32])
                         l = fh.next()
-                    self.terms[id_] = GOTerm(id_,name,namespace,is_a,part_of)
+                    self.terms[id_] = GOTerm(id_,name,domain,is_a,part_of)
 
         self._info('Parsed %d GO term definitions.', n)
 

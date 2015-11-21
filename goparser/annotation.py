@@ -16,6 +16,8 @@
 
 import re
 
+from goparser import GOTerm
+
 class GOAnnotation(object):
 
     """Class representing an annotation of a gene with a GO term.
@@ -134,7 +136,6 @@ class GOAnnotation(object):
     """
 
     #uniprot_pattern = re.compile("([A-Z][A-Z0-9]{5})(?:-(\d+))?")
-    #short_ns = {'biological_process': 'BP', 'molecular_function': 'MF', 'cellular_component': 'CC'}
 
     def __init__(self,target,term,evidence,db_id=None,db_ref=[],with_=[]):
         assert target is not None and target != ''
