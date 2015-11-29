@@ -148,71 +148,13 @@ class GOParser(object):
         self.term_annotations = {}
         self.gene_annotations = {}
 
-        # create logger
-        # do not add handlers, instead propagate messages to parent logger
-        self._logger = misc.configure_logger(__name__, log_stream=None,
-                log_file=None, propagate=True)
-   
-        # set log level
-        self._quiet = quiet
-        self._verbose = verbose
-        self._update_log_level() 
+        # get logger
+        self._logger = logging.getLogger(__name__) 
 
         self._syn2id = {}
         self._alt_id = {}
         self._name2id = {}
         self._flattened = False
-
-    @property
-    def quiet(self):
-        """Get or set the ``_quiet`` attribute.
-
-        If the ``_quiet`` attribute is set to True, info messages are
-        suppressed, and only warnings and errors are reported.
-        """
-        return self._quiet
-
-    @quiet.setter
-    def quiet(self,b):
-        if self._quiet != bool(b):
-            self._quiet = bool(b)
-            self._update_log_level()
-
-    @property
-    def verbose(self):
-        """Get or set the ``_verbose`` attribute.
-
-        If the ``_verbose`` attribute is set to True, debug messages are
-        reported (in addition to info, warning, and error messages). Note that
-        this attribute is ignored when the ``_quiet`` attribute is set to True.
-        """
-
-    @verbose.setter
-    def verbose(self,b):
-        if self._verbose != bool(b):
-            self._verbose = bool(b)
-            self._update_log_level()
-
-    def _update_log_level(self):
-        """Updates the log level. Called whenever the configuration changes.
-
-        The log level is determined by the values of the ``_quiet`` and
-        ``_verbose`` attributes.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
-        log_level = logging.INFO
-        if self.quiet:
-            log_level = logging.WARNING
-        elif self.verbose:
-            log_level = logging.DEBUG
-        self._logger.setLevel(log_level)
 
     # logging convenience functions
     def _debug(self,s,*args):
