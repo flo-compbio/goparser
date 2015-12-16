@@ -22,4 +22,11 @@ Changelog
 Version 1.1.1
 -------------
 
-- simplified the way in which logging is handled (see parser.py)
+- simplified the way in which logging is handled (see ``parser.py``)
+
+Version 1.1.2
+-------------
+
+- further simplified logging (see ``parser.py``)
+- some mostly cosmetic code changes in ``parser.py``
+

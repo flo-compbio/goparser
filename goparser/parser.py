@@ -30,6 +30,8 @@ from collections import Counter
 from genometools import misc
 from goparser import GOTerm, GOAnnotation
 
+logger = logging.getLogger(__name__)
+
 class GOParser(object):
     """ A class for accessing Gene Ontology (GO) term and annotation data.
 
@@ -142,38 +144,18 @@ class GOParser(object):
 
     """
 
-    def __init__(self,quiet=False,verbose=False):
+    def __init__(self, quiet = False, verbose = False):
         self.terms = {}
         self.annotations = []
         self.term_annotations = {}
         self.gene_annotations = {}
-
-        # get logger
-        self._logger = logging.getLogger(__name__) 
 
         self._syn2id = {}
         self._alt_id = {}
         self._name2id = {}
         self._flattened = False
 
-    # logging convenience functions
-    def _debug(self,s,*args):
-        """Generate a DEBUG message."""
-        self._logger.debug(s,*args)
-
-    def _info(self,s,*args):
-        """Generate an INFO message."""
-        self._logger.info(s,*args)
-
-    def _warning(self,s,*args):
-        """Generate a WARNING message."""
-        self._logger.warning(s,*args)
-
-    def _error(self,s,*args):
-        """Generate an ERROR message."""
-        self._logger.error(s,*args)
-
-    def save(self,ofn,compress=False):
+    def save(self, ofn, compress = False):
         """Serialize the current GOParser object and store it in a pickle file.
 
         Parameters
@@ -192,13 +174,13 @@ class GOParser(object):
         Compression with gzip is significantly slower than storing the file
         in uncompressed form.
         """
-        self._info('Saving pickle...')
+        logger.info('Saving pickle...')
         if compress:
-            with gzip.open(ofn,'wb') as ofh:
-                pickle.dump(self,ofh,pickle.HIGHEST_PROTOCOL)
+            with gzip.open(ofn, 'wb') as ofh:
+                pickle.dump(self, ofh, pickle.HIGHEST_PROTOCOL)
         else:
-            with open(ofn,'wb') as ofh:
-                pickle.dump(self,ofh,pickle.HIGHEST_PROTOCOL)
+            with open(ofn, 'wb') as ofh:
+                pickle.dump(self, ofh, pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
     def load(fn):
@@ -217,12 +199,12 @@ class GOParser(object):
         GOParser
             The GOParser object stored in the pickle file.
         """
-        G = None
-        with misc.open_plain_or_gzip(fn,'rb') as fh:
-            G = pickle.load(fh)
-        return G
+        P = None
+        with misc.open_plain_or_gzip(fn, 'rb') as fh:
+            P = pickle.load(fh)
+        return P
 
-    def get_term_by_id(self,id_):
+    def get_term_by_id(self, id_):
         """Get the GO term corresponding to the given GO term ID.
 
         Parameters
@@ -237,7 +219,7 @@ class GOParser(object):
         """
         return self.terms[id_]
 
-    def get_term_by_acc(self,acc):
+    def get_term_by_acc(self, acc):
         """Get the GO term corresponding to the given GO term accession number.
 
         Parameters
@@ -252,7 +234,7 @@ class GOParser(object):
         """
         return self.terms[GOParser.acc2id(acc)]
 
-    def get_term_by_name(self,name):
+    def get_term_by_name(self, name):
         """Get the GO term with the given GO term name.
 
         If the given name is not associated with any GO term, the function will
@@ -284,7 +266,7 @@ class GOParser(object):
             except KeyError:
                 pass
             else:
-                self._warning('%s: GO term name "%s" is a synonym for "%s".',
+                logger.warning('%s: GO term name "%s" is a synonym for "%s".',
                         func_name, name, term.name)
 
         if term is None:
@@ -327,7 +309,7 @@ class GOParser(object):
         self.term_annotations = {}
         self.gene_annotations = {}
 
-    def parse_ontology(self,fn,flatten=True,part_of_cc_only=False):
+    def parse_ontology(self, fn, flatten = True, part_of_cc_only = False):
         """ Parse an OBO file and store GO term information.
 
         This function needs to be called before `parse_annotations`, in order
@@ -387,12 +369,12 @@ class GOParser(object):
                             else:
                                 part_of.add(l[22:32])
                         l = fh.next()
-                    self.terms[id_] = GOTerm(id_,name,domain,is_a,part_of)
+                    self.terms[id_] = GOTerm(id_, name, domain, is_a, part_of)
 
-        self._info('Parsed %d GO term definitions.', n)
+        logger.info('Parsed %d GO term definitions.', n)
 
         # store children and parts
-        self._info('Adding child and part relationships...')
+        logger.info('Adding child and part relationships...')
         for id_,term in self.terms.iteritems():
             for parent in term.is_a:
                 self.terms[parent].children.add(id_)
@@ -400,13 +382,13 @@ class GOParser(object):
                 self.terms[whole].parts.add(id_)
 
         if flatten:
-            self._info('Flattening ancestors...')
+            logger.info('Flattening ancestors...')
             self._flatten_ancestors()
-            self._info('Flattening descendants...')
+            logger.info('Flattening descendants...')
             self._flatten_descendants()
             self._flattened = True
 
-    def _flatten_ancestors(self,include_part_of=True):
+    def _flatten_ancestors(self, include_part_of = True):
         """Determines and stores all ancestors of each GO term.
 
         Parameters
@@ -434,7 +416,7 @@ class GOParser(object):
         for term in self.terms.itervalues():
             term.ancestors = get_all_ancestors(term)
 
-    def _flatten_descendants(self,include_parts=True):
+    def _flatten_descendants(self, include_parts = True):
         """Determines and stores all descendants of each GO term.
 
         Parameters
@@ -462,8 +444,10 @@ class GOParser(object):
         for term in self.terms.itervalues():
             term.descendants = get_all_descendants(term)
 
-    def parse_annotations(self,annotation_file,gene_file,db_sel='UniProtKB',\
-            select_evidence=[],exclude_evidence=[],exclude_ref=[],strip_species=False,ignore_case=False):
+    def parse_annotations(self, annotation_file, gene_file,
+            db_sel = 'UniProtKB',
+            select_evidence = None, exclude_evidence = None,
+            exclude_ref = None, strip_species = False, ignore_case = False):
         """Parse a GAF file and store annotations as GOAnnotation objects.
 
         Parameters
@@ -478,12 +462,12 @@ class GOParser(object):
             If empty, disable filtering based on the ``DB`` value.
         select_evidence: list of str, optional
             Only include annotations with the given evidence codes.
-            If empty, allow all evidence codes, except for those listed in
-            ``exclude_evidence``.
+            It not specified, allow all evidence codes, except for those listed
+            in ``exclude_evidence``.
         exclude_evidence: list of str, optional
             Exclude all annotations with any of the given evidence codes.
-            If ``select_evidence`` is not empty, this parameter is ignored.
-            If empty, allow all evidence codes.
+            If ``select_evidence`` is specified, this parameter is ignored.
+            If not specified, allow all evidence codes.
         exclude_ref: list of str, optional
             Exclude all annotations with the given DB:reference (column 6).
             Example: ``["PMID:2676709"]``. Note: This filter is currently
@@ -501,6 +485,15 @@ class GOParser(object):
         if not self.terms:
             raise ValueError('You need to first parse an OBO file!')
 
+        if select_evidence is None:
+            select_evidence = []
+
+        if exclude_evidence is None:
+            exclude_evidence = []
+
+        if exclude_ref is None:
+            exclude_ref = []
+
         # always overwrite all previously parsed annotations
         self.clear_annotation_data()
 
@@ -514,12 +507,12 @@ class GOParser(object):
                 if ignore_case:
                     genes_upper[l[0].upper()] = l[0]
         self.genes = genes # store the list of genes for later use
-        self._info('Read %d genes.', len(genes))
+        logger.info('Read %d genes.', len(genes))
 
         # read annotations
         self.term_annotations = dict((id_,[]) for id_ in self.terms)
         self.gene_annotations = dict((g,[]) for g in self.genes)
-        gene_terms = dict((g,set()) for g in self.genes) # only used for statistics
+        gene_terms = dict((g,set()) for g in self.genes) # used for statistics
 
         isoform_pattern = re.compile(r"UniProtKB:([A-Z][0-9A-Z]{5}-\d+)")
         gene_pattern = re.compile(r"[a-zA-Z0-9]+\.\d+$")
@@ -533,12 +526,12 @@ class GOParser(object):
         unknown_term_annotations = 0
 
         # Parsing!
-        self._info('Parsing annotations...')
+        logger.info('Parsing annotations...')
         n = 0
         excluded_evidence_annotations = 0
         excluded_reference_annotations = 0
         valid_annotations = 0
-        with misc.open_plain_or_gzip(annotation_file) if annotation_file != '-' else sys.stdin as fh:
+        with misc.smart_open(annotation_file, try_gzip = True) as fh:
             reader = csv.reader(fh,dialect='excel-tab')
             for i,l in enumerate(reader):
                 target = None
@@ -548,7 +541,8 @@ class GOParser(object):
                     n+=1
 
                     # test if evidence code is excluded
-                    if (select_evidence and l[6] not in select_evidence) or l[6] in exclude_evidence:
+                    if (select_evidence and l[6] not in select_evidence) \
+                            or l[6] in exclude_evidence:
                         excluded_evidence_annotations += 1
                         continue
 
@@ -562,7 +556,9 @@ class GOParser(object):
                             
 
                     # determine target
-                    if not l[2]: raise Exception('Missing target gene in line %d:\n%s' %(i+1, '\t'.join(l)))
+                    if not l[2]:
+                        raise Exception('Missing target gene in line %d:\n%s'
+                                %(i+1, '\t'.join(l)))
 
                     gene = l[2]
                     db = l[0]
@@ -578,7 +574,8 @@ class GOParser(object):
 
                     invalid = False
 
-                    if (ignore_case and gene.upper() not in genes_upper) or ((not ignore_case) and gene not in self.genes):
+                    if (ignore_case and gene.upper() not in genes_upper) \
+                            or ((not ignore_case) and gene not in self.genes):
                         unknown_gene_annotations += 1
                         unknown_gene_names[l[2]] += 1
                         invalid = True
@@ -598,7 +595,8 @@ class GOParser(object):
 
                         term = self.terms[term_id]
 
-                        # parse secondary information (associated UniProt and PubMed entries)
+                        # parse secondary information
+                        # (associated UniProt and PubMed entries)
                         #pmid = pmid_pattern.search(l[5])
                         #if pmid is not None: pmid = pmid.group(0)
                         #uniprot = uniprot_pattern.search(l[7])
@@ -608,7 +606,9 @@ class GOParser(object):
                             with_ = l[7].split('|')
 
                         # generate annotation
-                        ann = GOAnnotation(target=gene,term=term,evidence=evidence,db_id=db_id,db_ref=db_ref,with_=with_)
+                        ann = GOAnnotation(target = gene, term = term,
+                                evidence = evidence, db_id = db_id,
+                                db_ref = db_ref, with_ = with_)
 
                         # add annotation to global list
                         self.annotations.append(ann)
@@ -622,18 +622,27 @@ class GOParser(object):
 
         # output some statistics
         if n > 0:
-            self._info('Parsed %d positive GO annotations (%d = %.1f%% excluded based on evidence type).', \
-                    n,excluded_evidence_annotations,100*(excluded_evidence_annotations/float(n)))
-        if unknown_gene_annotations > 0:
-            self._warning('Warning: %d annotations with %d unkonwn gene names.', \
-                    unknown_gene_annotations,len(unknown_gene_names))
-        if unknown_term_annotations > 0:
-            self._warning('Warning: %d annotations with %d unkonwn term IDs.',\
-                    unknown_term_annotations,len(unknown_term_ids))
-        self._info('Found a total of %d valid annotations.', valid_annotations)
-        self._info('%d unique Gene-Term associations.', sum(len(gene_terms[g]) for g in genes))
+            logger.info('Parsed %d positive GO annotations ' +
+                    '(%d = %.1f%% excluded based on evidence type).', \
+                    n, excluded_evidence_annotations,
+                    100*(excluded_evidence_annotations / float(n)))
 
-    def get_gene_goterms(self,gene,ancestors=False):
+        if unknown_gene_annotations > 0:
+            logger.warning('Warning: %d annotations with %d unkonwn gene ' +
+                    'names.',
+                    unknown_gene_annotations, len(unknown_gene_names))
+
+        if unknown_term_annotations > 0:
+            logger.warning('Warning: %d annotations with %d unkonwn term IDs.',
+                    unknown_term_annotations, len(unknown_term_ids))
+
+        logger.info('Found a total of %d valid annotations.',
+                valid_annotations)
+
+        logger.info('%d unique Gene-Term associations.',
+                sum(len(gene_terms[g]) for g in genes))
+
+    def get_gene_goterms(self, gene, ancestors = False):
         """Return all GO terms a particular gene is annotated with.
 
         Parameters
@@ -666,7 +675,7 @@ class GOParser(object):
 
         return terms
 
-    def get_goterm_genes(self,id_,descendants=True):
+    def get_goterm_genes(self, id_, descendants = True):
         """Return all genes that are annotated with a particular GO term.
 
         Parameters
@@ -689,7 +698,8 @@ class GOParser(object):
 
         if descendants:
             assert self._flattened
-            check_terms.update([self.terms[id_] for id_ in main_term.descendants])
+            check_terms.update([self.terms[id_]
+                    for id_ in main_term.descendants])
 
         # get annotations of all included terms
         genes = set()
