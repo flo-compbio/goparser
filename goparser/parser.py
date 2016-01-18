@@ -25,9 +25,10 @@ import sys
 import logging
 import bisect
 import cPickle as pickle
-from collections import Counter
+from collections import Counter, OrderedDict, Iterable
 
 from genometools import misc
+from genometools.basic import GeneSet, GeneSetDB
 from goparser import GOTerm, GOAnnotation
 
 logger = logging.getLogger(__name__)
@@ -155,7 +156,7 @@ class GOParser(object):
         self._name2id = {}
         self._flattened = False
 
-    def save(self, ofn, compress = False):
+    def write_pickle(self, ofn, compress = False):
         """Serialize the current GOParser object and store it in a pickle file.
 
         Parameters
@@ -183,7 +184,7 @@ class GOParser(object):
                 pickle.dump(self, ofh, pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
-    def load(fn):
+    def read_pickle(fn):
         """Load a GOParser object from a pickle file.
 
         The function automatically detects whether the file is compressed
@@ -349,12 +350,16 @@ class GOParser(object):
                     name = fh.next()[6:-1]
                     self._name2id[name] = id_
                     domain = fh.next()[11:-1]
+                    def_ = None
                     is_a = set()
                     part_of = set()
                     l = fh.next()
                     while l != '\n':
                         if l.startswith('alt_id:'):
                             self._alt_id[l[8:-1]] = id_
+                        elif l.startswith('def: '):
+                            idx = l[6:].index('"')
+                            def_ = l[6:(idx+6)]
                         elif l.startswith('is_a:'):
                             is_a.add(l[6:16])
                         elif l.startswith('synonym:'):
@@ -369,7 +374,8 @@ class GOParser(object):
                             else:
                                 part_of.add(l[22:32])
                         l = fh.next()
-                    self.terms[id_] = GOTerm(id_, name, domain, is_a, part_of)
+                    assert def_ is not None
+                    self.terms[id_] = GOTerm(id_, name, domain, def_, is_a, part_of)
 
         logger.info('Parsed %d GO term definitions.', n)
 
@@ -444,19 +450,27 @@ class GOParser(object):
         for term in self.terms.itervalues():
             term.descendants = get_all_descendants(term)
 
-    def parse_annotations(self, annotation_file, gene_file,
+    def parse_annotations(self, annotation_file, genes,
             db_sel = 'UniProtKB',
             select_evidence = None, exclude_evidence = None,
             exclude_ref = None, strip_species = False, ignore_case = False):
-        """Parse a GAF file and store annotations as GOAnnotation objects.
+        """Parse a GO annotation file (in GAF 2.0 format).
+
+        GO annotation files can be downloaded from the
+        `UniProt-GOA download site`__ or from their `FTP server`__.
+
+        __ goa_download_
+        __ goa_ftp_
+
+        .. _goa_download: http://www.ebi.ac.uk/GOA/downloads
+        .. _goa_ftp: ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/
 
         Parameters
         ----------
-        annotation_file: str
-            Path of the annotation file.
-        gene_file: str
-            Path of the gene file. (This file can be generated using
-            extract_protein_coding_genes.py from `genometools`.)
+        annotation_file: str or unicode
+            Path of the annotation file (in GAF 2.0 format).
+        genes: List (tuple, set) of str
+            List of valid gene names.
         db_sel: str, optional
             Select only annotations with this ``DB`` (column 1) value.
             If empty, disable filtering based on the ``DB`` value.
@@ -482,6 +496,9 @@ class GOParser(object):
         None
         """
 
+        assert isinstance(annotation_file, (str, unicode))
+        assert isinstance(genes, Iterable)
+
         if not self.terms:
             raise ValueError('You need to first parse an OBO file!')
 
@@ -497,16 +514,9 @@ class GOParser(object):
         # always overwrite all previously parsed annotations
         self.clear_annotation_data()
 
-        # read genes
-        genes = set()
-        genes_upper = {}
-        with open(gene_file) as fh:
-            reader = csv.reader(fh,dialect='excel-tab')
-            for l in reader:
-                genes.add(l[0])
-                if ignore_case:
-                    genes_upper[l[0].upper()] = l[0]
-        self.genes = genes # store the list of genes for later use
+        # store genes
+        self.genes = set(genes) # store the list of genes for later use
+        genes_upper = dict([g.upper(), g] for g in genes)
         logger.info('Read %d genes.', len(genes))
 
         # read annotations
@@ -534,7 +544,7 @@ class GOParser(object):
         with misc.smart_open(annotation_file, try_gzip = True) as fh:
             reader = csv.reader(fh,dialect='excel-tab')
             for i,l in enumerate(reader):
-                target = None
+                gene = None
 
                 if not l: continue
                 if ((not db_sel) or l[0] == db_sel) and l[3] != 'NOT':
@@ -554,8 +564,7 @@ class GOParser(object):
                             excluded_reference_annotations += 1
                             continue
                             
-
-                    # determine target
+                    # determine target gene
                     if not l[2]:
                         raise Exception('Missing target gene in line %d:\n%s'
                                 %(i+1, '\t'.join(l)))
@@ -606,7 +615,7 @@ class GOParser(object):
                             with_ = l[7].split('|')
 
                         # generate annotation
-                        ann = GOAnnotation(target = gene, term = term,
+                        ann = GOAnnotation(gene = gene, term = term,
                                 evidence = evidence, db_id = db_id,
                                 db_ref = db_ref, with_ = with_)
 
@@ -673,7 +682,7 @@ class GOParser(object):
                 ancestor_terms.update(self.terms[id_] for id_ in t.ancestors)
             terms |= ancestor_terms
 
-        return terms
+        return frozenset(terms)
 
     def get_goterm_genes(self, id_, descendants = True):
         """Return all genes that are annotated with a particular GO term.
@@ -704,6 +713,102 @@ class GOParser(object):
         # get annotations of all included terms
         genes = set()
         for term in check_terms:
-            genes.update(ann.target for ann in self.term_annotations[term.id])
+            genes.update(ann.gene for ann in self.term_annotations[term.id])
 
-        return genes
+        return frozenset(genes)
+
+    def get_gene_sets(self, min_genes = None, max_genes = None):
+        """Return the set of annotated genes for each GO term.
+
+        Parameters
+        ----------
+        min_genes: int, optional
+            Exclude GO terms with fewer than this number of genes.
+        max_genes: int, optional
+            Exclude GO terms with more than this number of genes.
+
+        Returns
+        -------
+        GeneSetDB
+            A gene set "database" with one gene set for each GO term.
+        """
+
+        if not self.terms:
+            raise ValueError('You need to first parse both an OBO file and ' +
+                    'a gene association file!')
+
+        if not self.annotations:
+            raise ValueError('You need to first parse a gene association ' +
+                    'file!')
+
+        all_term_ids = sorted(self.terms.keys())
+
+        # go over all GO terms and get associated genes
+        logger.info('Obtaining GO term associations...')
+        n = len(all_term_ids)
+        term_gene_counts = []
+        #term_ids = []
+
+        term_genes = OrderedDict()
+        geneset_terms = {}
+        gene_sets = []
+        for j,id_ in enumerate(all_term_ids):
+            tg = self.get_goterm_genes(id_)
+            assert isinstance(tg, frozenset)
+            c = len(tg)
+
+            if c == 0:
+                continue
+
+            if (min_genes is not None and c < min_genes) or \
+                    (max_genes is not None and c > max_genes):
+                # term doesn't meet min/max number of genes criteria
+                continue
+
+            # for finding redundant terms (use set of genes as key)
+            try:
+                geneset_terms[tg].append(id_)
+            except KeyError:
+                geneset_terms[tg] = [id_]
+
+            term_genes[id_] = tg
+
+        selected = len(term_genes)
+        affected = 0
+        excl = 0
+        for id_, tg in term_genes.iteritems():
+
+            # check if there are redundant terms
+            term = self.terms[id_]
+            if len(geneset_terms[tg]) > 1:
+                gt = geneset_terms[tg]
+                affected += 1
+                # check if this term is an ancestor of any of them
+                # if so, exclude it
+                excluded = False
+                for other_id in gt:
+                    if (other_id != id_) and (other_id in term.descendants):
+                        excluded = True
+                        break
+                if excluded:
+                    excl += 1
+                    continue
+
+            # if the term is not redundant with any other term,
+            # or if it isn't the ancestor of any redundant term,
+            # add its gene set to the list
+            name = term.name
+            source = 'GO'
+            coll = term.domain_short
+            desc = term.definition
+            gs = GeneSet(id_, name, tg, source = source,
+                    collection = coll, description = desc)
+            gene_sets.append(gs)
+
+        D = GeneSetDB(gene_sets)
+        logger.info('# terms selected intially: %d', selected)
+        logger.info('# terms with redundant gene sets: %d', affected)
+        logger.info('# terms excluded due to redundancy: %d', excl)
+        logger.info('# terms retained: %d', D.n)
+
+        return D
