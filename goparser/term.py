@@ -29,6 +29,8 @@ class GOTerm(object):
         See ``id`` attribute.
     name: str
         See ``name`` attribute.
+    definition: str
+        See ``definition`` attribute.
     domain: str
         See ``domain`` attribute.
     is_a: List of str
@@ -45,6 +47,8 @@ class GOTerm(object):
         The name of the GO term.
     domain: str
         The domain of the GO term (e.g., "biological_process").
+    definition: str
+        The definition (description) of the GO term.
     is_a: set of str
         Set of GO term IDs that this GO term is a "subtype" of.
     part_of: set of str
@@ -83,11 +87,12 @@ class GOTerm(object):
     """List of tuples defining abbreviations to use in GO term names.
     """
 
-    def __init__(self,id_,name,domain,is_a,part_of):
+    def __init__(self, id_, name, domain, definition, is_a, part_of):
 
         self.id = id_ # unique identifier
         self.name = name
         self.domain = domain
+        self.definition = definition
 
         # to store immediate parents/wholes
         self.is_a = is_a.copy()
@@ -102,25 +107,24 @@ class GOTerm(object):
         self.ancestors = None
 
     def __repr__(self):
-        return "<GOTerm %s>" %(self.id)
+        return "<GOTerm %s>" %(self.id) # The ID uniquely identifies the term
+
     def __str__(self):
         return "<GOTerm: %s>" %(self.get_pretty_format())
 
-    def __eq__(self,other):
+    def __eq__(self, other):
         if type(self) != type(other):
             return False
-
-        elif self is other:
-            return True
-            
-        elif self.id == other.id:
-            return True
-
         else:
-            return False
+            return repr(self) == repr(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __hash__(self):
-        return hash(repr(self))
+        data = []
+        data.append(self.id)
+        return hash(tuple(data))
 
     @staticmethod
     def id2acc(id_):
@@ -140,7 +144,7 @@ class GOTerm(object):
         return int(id_[3:])
 
     @staticmethod
-    def acc2id(self,acc):
+    def acc2id(acc):
         """Converts a GO term accession number to an ID.
 
         Parameters
@@ -157,25 +161,27 @@ class GOTerm(object):
 
     @property
     def acc(self):
-        return id2acc(self.id)
+        """Returns the GO term accession number (part of the ID)."""
+        return self.id2acc(self.id)
 
     @property
     def domain_short(self):
         return self._short_domain[self.domain]
 
-    def get_pretty_format(self,omit_acc=False,max_name_length=0,abbreviate=True):
+    def get_pretty_format(self, include_id = True, max_name_length = 0,
+            abbreviate = True):
         """Returns a nicely formatted string with the GO term information.
 
         Parameters
         ----------
-        omit_acc: bool, optional
-            If set to True, don't include the GO term ID.
+        include_id: bool, optional
+            Include the GO term ID.
         max_name_length: int, optional
-            If set, the formatted string (excluding the ID) will be truncated
-            so that its total length does not exceed this value.
+            Truncate the formatted string so that its total length does not
+            exceed this value.
         abbreviate: bool, optional
-            If set to False, do not use abberviations (see ``_abbrev``) to
-            shorten the GO term name.
+            Do not use abberviations (see ``_abbrev``) to shorten the GO term
+            name.
 
         Returns
         -------
@@ -188,23 +194,7 @@ class GOTerm(object):
                 name = re.sub(abb[0],abb[1],name)
         if max_name_length >= 3 and len(name) > max_name_length:
             name = name[:(max_name_length-3)] + '...'
-        if omit_acc: return "%s: %s" %(self.domain_short, name)
-        else: return "%s: %s (%s)" %(self.domain_short, name, self.id)
-
-    def get_tuple(self):
-        """Returns a 4-tuple containing the GO term information.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        tuple (of length 4)
-            A tuple with elements consisting of the GO term ID, the string
-            "GO", the shortened domain (see ``_short_domain``), and the GO term
-            name.
-        """
-        return (self.id,'GO',self.domain_short,self.name)
-
-
+        if include_id:
+            return "%s: %s (%s)" %(self.domain_short, name, self.id)
+        else:
+            return "%s: %s" %(self.domain_short, name)

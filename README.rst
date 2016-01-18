@@ -24,10 +24,22 @@ The
 is available on ReadTheDocs.
 
 
+.. |docs-latest| image:: https://readthedocs.org/projects/goparser/badge/?version=latest&hello
+    :alt: Documentation Status (master branch)
+    :scale: 100%
+    :target: https://goparser.readthedocs.org/en/latest/?badge=latest&hello
+
+
+.. |docs-develop| image:: https://readthedocs.org/projects/goparser/badge/?version=develop&hello
+    :alt: Documentation Status (develop branch)
+    :scale: 100%
+    :target: https://goparser.readthedocs.org/en/develop/?badge=develop&hello
+
+
 Copyright and License
 ---------------------
 
-Copyright (c) 2015 Florian Wagner
+Copyright (c) 2015, 2016 Florian Wagner
 
 ::
 
@@ -43,12 +55,4 @@ Copyright (c) 2015 Florian Wagner
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-.. |docs-latest| image:: https://readthedocs.org/projects/goparser/badge/?version=latest
-    :alt: Documentation Status (master branch)
-    :scale: 100%
-    :target: https://goparser.readthedocs.org/en/latest/?badge=latest
 
-.. |docs-develop| image:: https://readthedocs.org/projects/goparser/badge/?version=develop
-    :alt: Documentation Status (develop branch)
-    :scale: 100%
-    :target: https://goparser.readthedocs.org/en/develop/?badge=develop

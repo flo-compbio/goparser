@@ -15,6 +15,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import re
+from collections import Iterable
 
 from goparser import GOTerm
 
@@ -29,8 +30,8 @@ class GOAnnotation(object):
 
     Parameters
     ----------
-    target: str
-        See :attr:`target` attribute.
+    gene: str
+        See :attr:`gene` attribute.
     term: `GOTerm` object
         See :attr:`term` attribute.
     evidence: str
@@ -44,8 +45,8 @@ class GOAnnotation(object):
 
     Attributes
     ----------
-    target: str
-        The symbol (name) of the gene that is annotated (e.g., "MYOD1").
+    gene: str
+        The gene that is annotated (e.g., "MYOD1").
     term: `GOTerm` object
         The GO term that the gene is annotated with.
     evidence: str
@@ -138,46 +139,55 @@ class GOAnnotation(object):
 
     #uniprot_pattern = re.compile("([A-Z][A-Z0-9]{5})(?:-(\d+))?")
 
-    def __init__(self,target,term,evidence,db_id=None,db_ref=[],with_=[]):
-        assert target is not None and target != ''
-        assert evidence is not None and evidence != ''
-        assert type(term) == GOTerm
-        self.target = target # a gene name
-        self.term = term # a GOTerm object
-        self.evidence = evidence # GO evidence code
-        #self.pubmed_id = pubmed_id # PubMed ID, optional
-        #self.uniprot = uniprot # Uniprot identifier, optional
+    def __init__(self, gene, term, evidence, db_id = None,
+                db_ref = None, with_ = None):
+
+        assert isinstance(term, GOTerm)
+        assert isinstance(gene, (str, unicode)) and gene != ''
+        assert isinstance(evidence, (str, unicode)) and evidence != ''
+
+        if db_id is not None:
+            assert isinstance(db_id, (str, unicode)) and db_id != ''
+
+        if db_ref is not None:
+            assert isinstance(db_ref, Iterable)
+        else:
+            db_ref = []
+
+        if with_ is not None:
+            assert isinstance(with_, Iterable)
+
+        self.gene = gene
+        self.term = term
+        self.evidence = evidence
         self.db_id = db_id
-        self.db_ref = db_ref[:]
-        self.with_ = with_[:]
+        self.db_ref = () if db_ref is None else tuple(db_ref)
+        self.with_ = () if with_ is None else tuple(with_)
 
     def __repr__(self):
-        return "<GOAnnotation %s>" %(', '.join([self.target,self.db_id,self.evidence,'|'.join(self.db_ref),'|'.join(self.with_),repr(self.term)]))
+        return '<GOAnnotation (hash=%d)>' %(hash(self))
 
     def __str__(self):
-        #return "<GOAnnotation: %s>" %(self.get_formatted(sep=','))
-        return "<GOAnnotation: %s>" %(self.get_pretty_format())
+        return '<GOAnnotation of gene "%s" with term "%s" (%s)>' \
+                %(self.gene, self.term.name, self.term.id)
 
     def __eq__(self,other):
         if type(self) != type(other):
             return False
-
         elif self is other:
             return True
-
-        elif self.target == other.target \
-                and self.db_id == other.db_id \
-                and self.term == other.term \
-                and self.evidence == other.evidence \
-                and self.db_ref == other.db_ref \
-                and self.with_ == other.with_:
-            return True
-
         else:
-            return False
+            return repr(self) == repr(other)
 
     def __hash__(self):
-        return hash(repr(self))
+        data = []
+        data.append(self.gene)
+        data.append(self.term)
+        data.append(self.evidence)
+        data.append(self.db_id)
+        data.append(self.db_ref)
+        
+        return hash(tuple(data))
 
     def get_gaf_format(self):
         """Return a GAF 2.0-compatible string representation of the annotation.
@@ -192,21 +202,21 @@ class GOAnnotation(object):
             The formatted string.
         """
         sep = '\t'
-        return sep.join([self.target,self.db_ref,self.term.id,self.evidence,'|'.join(self.db_ref),'|'.join(self.with_)])
+        return sep.join([self.gene, self.db_ref, self.term.id, self.evidence,
+                '|'.join(self.db_ref), '|'.join(self.with_)])
 
-    def get_pretty_format(self):
-        """Returns a nicely formatted string with the annotation information.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        str
-            The formatted string.
-        """
-        pretty = "Annotation of gene '%s' with GO term '%s' (%s, reference: %s)'" \
-                %(self.target,self.term.get_pretty_format(),self.evidence,'|'.join(self.db_ref))
-        return pretty
-
+    #def get_pretty_format(self):
+    #    """Returns a nicely formatted string with the annotation information.
+    #
+    #    Parameters
+    #    ----------
+    #    None
+    #
+    #    Returns
+    #    -------
+    #    str
+    #        The formatted string.
+    #    """
+    #    pretty = "Annotation of gene '%s' with GO term '%s' (%s, reference: %s)'" \
+    #            %(self.target,self.term.get_pretty_format(),self.evidence,'|'.join(self.db_ref))
+    #    return pretty

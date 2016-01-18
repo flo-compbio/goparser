@@ -19,14 +19,21 @@
 Changelog
 =========
 
-Version 1.1.1
+Version 1.1.3
 -------------
 
-- simplified the way in which logging is handled (see ``parser.py``)
+- integrated code more with classes from `genometools` package
+- added `GOParser.get_gene_sets()` function (see ``parser.py``)
 
 Version 1.1.2
 -------------
 
 - further simplified logging (see ``parser.py``)
 - some mostly cosmetic code changes in ``parser.py``
+
+Version 1.1.1
+-------------
+
+- simplified the way in which logging is handled (see ``parser.py``)
+
 
