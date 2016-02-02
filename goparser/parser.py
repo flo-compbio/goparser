@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Florian Wagner
+# Copyright (c) 2015, 2016 Florian Wagner
 #
 # This file is part of GOparser.
 #
@@ -18,7 +18,6 @@
 
 """
 
-import csv
 import gzip
 import re
 import sys
@@ -26,6 +25,8 @@ import logging
 import bisect
 import cPickle as pickle
 from collections import Counter, OrderedDict, Iterable
+
+import unicodecsv as csv
 
 from genometools import misc
 from genometools.basic import GeneSet, GeneSetDB
@@ -541,14 +542,15 @@ class GOParser(object):
         excluded_evidence_annotations = 0
         excluded_reference_annotations = 0
         valid_annotations = 0
-        with misc.smart_open(annotation_file, try_gzip = True) as fh:
-            reader = csv.reader(fh,dialect='excel-tab')
+        with misc.smart_open_read(annotation_file, mode = 'rb',
+                try_gzip = True) as fh:
+            reader = csv.reader(fh, dialect = 'excel-tab', encoding = 'UTF-8')
             for i,l in enumerate(reader):
                 gene = None
 
                 if not l: continue
                 if ((not db_sel) or l[0] == db_sel) and l[3] != 'NOT':
-                    n+=1
+                    n += 1
 
                     # test if evidence code is excluded
                     if (select_evidence and l[6] not in select_evidence) \
