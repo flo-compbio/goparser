@@ -18,6 +18,10 @@
 
 """
 
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+
 import gzip
 import re
 import sys
@@ -141,8 +145,9 @@ class GOParser(object):
     >>> from goparser import GOParser
     >>> G = GOParser()
     >>> GOParser.parse_ontology('go-basic.obo')
-    >>> GOParser.parse_annotations('gene_association.goa_human.gz','protein_coding_genes_human.tsv')
-    >>> print GOParser.get_gene_goterms('MYC')
+    >>> GOParser.parse_annotations('gene_association.goa_human.gz',
+    >>>                            'protein_coding_genes_human.tsv')
+    >>> print(GOParser.get_gene_goterms('MYC'))
 
     """
 
@@ -468,7 +473,7 @@ class GOParser(object):
 
         Parameters
         ----------
-        annotation_file: str or unicode
+        annotation_file: str
             Path of the annotation file (in GAF 2.0 format).
         genes: List (tuple, set) of str
             List of valid gene names.
@@ -497,7 +502,7 @@ class GOParser(object):
         None
         """
 
-        assert isinstance(annotation_file, (str, unicode))
+        assert isinstance(annotation_file, str)
         assert isinstance(genes, Iterable)
 
         if not self.terms:

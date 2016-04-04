@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Florian Wagner
+# Copyright (c) 2015, 2016 Florian Wagner
 #
 # This file is part of GOparser.
 #
@@ -13,6 +13,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+"""Module containing the `GOAnnotation` class."""
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
 
 import re
 from collections import Iterable
@@ -143,11 +149,11 @@ class GOAnnotation(object):
                 db_ref = None, with_ = None):
 
         assert isinstance(term, GOTerm)
-        assert isinstance(gene, (str, unicode)) and gene != ''
-        assert isinstance(evidence, (str, unicode)) and evidence != ''
+        assert isinstance(gene, str) and gene != ''
+        assert isinstance(evidence, str) and evidence != ''
 
         if db_id is not None:
-            assert isinstance(db_id, (str, unicode)) and db_id != ''
+            assert isinstance(db_id, str) and db_id != ''
 
         if db_ref is not None:
             assert isinstance(db_ref, Iterable)
