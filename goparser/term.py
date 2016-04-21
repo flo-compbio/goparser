@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Florian Wagner
+# Copyright (c) 2015, 2016 Florian Wagner
 #
 # This file is part of GOparser.
 #
@@ -14,7 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+"""Module containing the `GOTerm` class."""
+
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *
+
 import re
+
 
 class GOTerm(object):
 
@@ -37,7 +44,6 @@ class GOTerm(object):
         See ``is_a`` attribute.
     part_of: List of str
         See ``part_of`` attribute.
-    children:
 
     Attributes
     ----------
@@ -78,18 +84,18 @@ class GOTerm(object):
     """
 
     _abbrev = [
-        ('positive ','pos. '),
-        ('negative ','neg. '),
-        ('interferon-','IFN-'),
-        ('proliferation','prolif.'),
-        ('signaling','signal.')
+        ('positive ', 'pos. '),
+        ('negative ', 'neg. '),
+        ('interferon-', 'IFN-'),
+        ('proliferation', 'prolif.'),
+        ('signaling', 'signal.')
     ]
     """List of tuples defining abbreviations to use in GO term names.
     """
 
     def __init__(self, id_, name, domain, definition, is_a, part_of):
 
-        self.id = id_ # unique identifier
+        self.id = id_  # unique identifier
         self.name = name
         self.domain = domain
         self.definition = definition
@@ -107,10 +113,11 @@ class GOTerm(object):
         self.ancestors = None
 
     def __repr__(self):
-        return "<GOTerm %s>" %(self.id) # The ID uniquely identifies the term
+        # The ID uniquely identifies the term
+        return '<GOTerm %s>' % self.id
 
     def __str__(self):
-        return "<GOTerm: %s>" %(self.get_pretty_format())
+        return '<GOTerm: %s>' % self.get_pretty_format()
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -122,9 +129,10 @@ class GOTerm(object):
         return not self.__eq__(other)
 
     def __hash__(self):
-        data = []
-        data.append(self.id)
-        return hash(tuple(data))
+        data = (
+            self.id,
+        )
+        return hash(data)
 
     @staticmethod
     def id2acc(id_):
@@ -157,7 +165,7 @@ class GOTerm(object):
         str
             The ID corresponding to the GO term accession number.
         """
-        return 'GO:%07d' %(acc)
+        return 'GO:%07d' % acc
 
     @property
     def acc(self):
@@ -168,8 +176,8 @@ class GOTerm(object):
     def domain_short(self):
         return self._short_domain[self.domain]
 
-    def get_pretty_format(self, include_id = True, max_name_length = 0,
-            abbreviate = True):
+    def get_pretty_format(self, include_id=True, max_name_length=0,
+                          abbreviate=True):
         """Returns a nicely formatted string with the GO term information.
 
         Parameters
@@ -191,10 +199,10 @@ class GOTerm(object):
         name = self.name
         if abbreviate:
             for abb in self._abbrev:
-                name = re.sub(abb[0],abb[1],name)
-        if max_name_length >= 3 and len(name) > max_name_length:
+                name = re.sub(abb[0], abb[1], name)
+        if 3 <= max_name_length < len(name):
             name = name[:(max_name_length-3)] + '...'
         if include_id:
-            return "%s: %s (%s)" %(self.domain_short, name, self.id)
+            return "%s: %s (%s)" % (self.domain_short, name, self.id)
         else:
-            return "%s: %s" %(self.domain_short, name)
+            return "%s: %s" % (self.domain_short, name)

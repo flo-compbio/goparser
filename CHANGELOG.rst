@@ -1,5 +1,5 @@
 ..
-    Copyright (c) 2015 Florian Wagner
+    Copyright (c) 2015, 2016 Florian Wagner
     
     This file is part of GOparser.
     
@@ -18,6 +18,11 @@
 
 Changelog
 =========
+
+Version 1.2rc1
+--------------
+
+- made library compatible with Python 2.7 and 3.x
 
 Version 1.1.3
 -------------
