@@ -19,8 +19,8 @@
 Changelog
 =========
 
-Version 1.2.0
--------------
+Version 1.2rc1
+--------------
 
 - made library compatible with Python 2.7 and 3.x
 

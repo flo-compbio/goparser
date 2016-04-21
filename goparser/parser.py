@@ -22,13 +22,13 @@ from __future__ import (absolute_import, division,
 from builtins import *
 
 import gzip
-import re
+# import re
 import six
 # import sys
 import logging
 # import bisect
 
-from collections import Counter, OrderedDict, Iterable
+from collections import Counter, OrderedDict
 
 import unicodecsv as csv
 
