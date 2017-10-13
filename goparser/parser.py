@@ -33,7 +33,7 @@ from collections import Counter, OrderedDict
 import unicodecsv as csv
 
 from genometools import misc
-from genometools.basic import GeneSet, GeneSetDB
+from genometools.basic import GeneSet, GeneSetCollection
 from . import GOTerm, GOAnnotation
 
 import pickle
@@ -738,7 +738,7 @@ class GOParser(object):
 
         Returns
         -------
-        GeneSetDB
+        GeneSetCollection
             A gene set "database" with one gene set for each GO term.
         """
 
@@ -814,7 +814,7 @@ class GOParser(object):
                          collection=coll, description=desc)
             gene_sets.append(gs)
 
-        D = GeneSetDB(gene_sets)
+        D = GeneSetCollection(gene_sets)
         logger.info('# terms selected intially: %d', selected)
         logger.info('# terms with redundant gene sets: %d', affected)
         logger.info('# terms excluded due to redundancy: %d', excl)
