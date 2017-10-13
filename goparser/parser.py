@@ -36,7 +36,10 @@ from genometools import misc
 from genometools.basic import GeneSet, GeneSetCollection
 from . import GOTerm, GOAnnotation
 
-import pickle
+if six.PY2:
+    import cPickle as pickle
+else:
+    import pickle
 
 logger = logging.getLogger(__name__)
 
